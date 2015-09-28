@@ -18,8 +18,8 @@ environment:
       PYTHON_VERSION: "2.7"
       PYTHON_ARCH: "64"
 
-#os:
-#  - unstable # Unstable worker image with logged in user, desktop and interactive build agent
+os:
+  - unstable # Unstable worker image with logged in user, desktop and interactive build agent
 
 install:
   # Some listings for debug only
@@ -27,6 +27,9 @@ install:
   #- ps: "ls \"C:/\""
   #- ECHO "Notepad location "
   #- ps: "ls C:\\Windows\\System32\\notepad.exe"
+
+  # update pip
+  - "%CMD_IN_ENV% pip install --upgrade pip"
 
   # install wxPython
    - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
