@@ -33,7 +33,7 @@ install:
    - "%CMD_IN_ENV% powershell ./ci/install.ps1"
 
   # update pip
-   - "%CMD_IN_ENV% pip install --upgrade pip"
+   - "pip install --disable-pip-version-check --user --upgrade pip"
 
   # Install the build dependencies of the project.
    - "%CMD_IN_ENV% pip install -r dev-requirements.txt"
