@@ -29,7 +29,7 @@ install:
   #- ps: "ls C:\\Windows\\System32\\notepad.exe"
 
   # update pip
-  - "%CMD_IN_ENV% pip install --upgrade pip"
+   - "%CMD_IN_ENV% pip install --upgrade pip"
 
   # install wxPython
    - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
