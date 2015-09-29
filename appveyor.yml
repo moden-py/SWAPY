@@ -10,12 +10,12 @@ shallow_clone: true                 # default is "false"
 environment:
 
   matrix:
-    - PYTHON: "C:\\Python27"
-      PYTHON_VERSION: "2.7"
+    - PYTHON: "C:\\Python27.10"
+      PYTHON_VERSION: "2.7.10"
       PYTHON_ARCH: "32"
 
-    - PYTHON: "C:\\Python27-x64"
-      PYTHON_VERSION: "2.7"
+    - PYTHON: "C:\\Python27.10-x64"
+      PYTHON_VERSION: "2.7.10"
       PYTHON_ARCH: "64"
 
 os:
@@ -28,18 +28,18 @@ install:
   #- ECHO "Notepad location "
   #- ps: "ls C:\\Windows\\System32\\notepad.exe"
 
-  # update pip
-  - "%CMD_IN_ENV% pip install --upgrade pip"
-
   # install wxPython
    - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
    - "%CMD_IN_ENV% powershell ./ci/install.ps1"
+
+  # update pip
+   - "%CMD_IN_ENV% pip install --disable-pip-version-check --user --upgrade pip"
 
   # Install the build dependencies of the project.
    - "%CMD_IN_ENV% pip install -r dev-requirements.txt"
 
    # Install pywinauto from the trunk
-   - "%CMD_IN_ENV% pip install -e git+https://github.com/pywinauto/pywinauto.git@master#egg=pywinauto-trunk"
+   - "%CMD_IN_ENV% pip install -e git+https://github.com/pywinauto/pywinauto.git@6ee10c194f9a4369041696f56d99e40332713dab#egg=pywinauto-trunk"
 
 build: off  # disable automatic builds
 
