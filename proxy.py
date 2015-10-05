@@ -25,6 +25,7 @@ import time
 import thread
 import exceptions
 import platform
+import re
 import warnings
 from const import *
 
@@ -49,6 +50,16 @@ def resource_path(filename):
         ###os.chdir(sys.path.dirname(sys.argv[0]))
         filename = os.path.join(os.path.dirname(sys.argv[0]), filename)
     return filename
+
+
+def check_valid_identifier(identifier):
+
+    """
+    Check the identifier is a valid Python identifier.
+    Since the identifier will be used as an attribute, don't check for reserved names.
+    """
+
+    return bool(re.match("[_A-Za-z][_a-zA-Z0-9]*$", identifier))
 
 
 class CodeGenerator(object):
@@ -92,12 +103,17 @@ class CodeGenerator(object):
         if pattern:
             self.code_var_name = self.code_var_pattern.format(id=self.get_code_id(self.code_var_pattern))
             format_kwargs = {'var': self.code_var_name}
-            if self.parent or self.code_parents[0]:
+            try:
+                main_parent = self.code_parents[0]
+            except IndexError:
+                main_parent = None
+
+            if self.parent or main_parent:
                 if self.parent:
                     format_kwargs['parent_var'] = self.parent.code_var_name
-                if self.code_parents[0]:
-                    format_kwargs['main_parent_var'] = self.code_parents[0].code_var_name
-                return pattern.format(**format_kwargs)
+                if main_parent:
+                    format_kwargs['main_parent_var'] = main_parent.code_var_name
+            return pattern.format(**format_kwargs)
         return ""
 
     def get_code_action(self, action):
@@ -447,7 +463,8 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     Mix the pywinauto wrapper and the codegenerator
     """
 
-    code_self_pattern = "{var} = {parent_var}['{access_name}']\n"
+    code_self_pattern_attr = "{var} = {parent_var}.{access_name}\n"
+    code_self_pattern_item = "{var} = {parent_var}['{access_name}']\n"
     code_action_pattern = "{var}.{action}()\n"
     main_parent_type = None
 
@@ -480,11 +497,19 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         """
         Default _code_self.
         """
-
-        access_name = self._get_additional_properties()['Access names'][0].encode('unicode-escape', 'replace')
-        code = self.code_self_pattern.format(access_name=access_name,
-                                             parent_var="{parent_var}",
-                                             var="{var}")
+        #print self._get_additional_properties()
+        access_name = self._get_additional_properties()['Access names'][0]
+        if check_valid_identifier(access_name):
+            # A valid identifier
+            code = self.code_self_pattern_attr.format(access_name=access_name,
+                                                      parent_var="{parent_var}",
+                                                      var="{var}")
+        else:
+            #Not valid, encode and use as app's item.
+            access_name = access_name.encode('unicode-escape', 'replace')
+            code = self.code_self_pattern_item.format(access_name=access_name,
+                                                      parent_var="{parent_var}",
+                                                      var="{var}")
         return code
 
     @property
@@ -537,7 +562,7 @@ class VirtualSWAPYObject(SWAPYObject):
     def _code_action(self):
         index = self.index
         if isinstance(index, unicode):
-            index = "'%s'" % self.index.encode('unicode-escape', 'replace')
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
         code = self.code_action_pattern.format(index=index,
                                                action="{action}",
                                                var="{var}",
@@ -565,10 +590,17 @@ class VirtualSWAPYObject(SWAPYObject):
 class PC_system(SWAPYObject):
     handle = 0
 
+    # code_self_pattern = "{var} = pywinauto.application.Application()\n"
+
     @property
     def _code_self(self):
-        # Prevent code generation
+        # code = self.code_self_pattern.format(var="{var}")
+        # return code
         return ""
+    #
+    # @property
+    # def code_var_pattern(self):
+    #     return "app{id}".format(id="{id}")
 
     def Get_subitems(self):
         '''
@@ -642,13 +674,23 @@ class PC_system(SWAPYObject):
 
 
 class Pwa_window(SWAPYObject):
-    code_self_pattern = "{var} = app.Window_(title=u'{title}', class_name='{cls_name}')\n"
+    code_self_pattern_attr = "{var} = app_{var}.{access_name}\n"
+    code_self_pattern_item = "{var} = app_{var}['{access_name}']\n"
+    #code_self_pattern = "{var} = {parent_var}.Window_(title=u'{title}', class_name='{cls_name}')\n"
 
     @property
     def _code_self(self):
-        code = self.code_self_pattern.format(title=self.pwa_obj.WindowText().encode('unicode-escape', 'replace'),
-                                             cls_name=self.pwa_obj.Class(),
-                                             var="{var}")
+        code = ""
+        if not self._get_additional_properties()['Access names']:
+            raise NotImplementedError
+        else:
+            code += "app_{var} = Application().Connect_(title=u'{title}'," \
+                    "class_name='{cls_name}')\n".format(title=self.pwa_obj.WindowText().encode('unicode-escape',
+                                                                                               'replace'),
+                                                        cls_name=self.pwa_obj.Class(),
+                                                        var="{var}")
+            code += super(Pwa_window, self)._code_self
+
         return code
 
     def _get_additional_children(self):
@@ -661,6 +703,32 @@ class Pwa_window(SWAPYObject):
             menu_child = [('!Menu', self._get_swapy_object(menu))]
             additional_children += menu_child
         return additional_children
+
+    def _get_additional_properties(self):
+        '''
+        Get additonal useful properties, like a handle, process ID, etc.
+        Can be overridden by derived class
+        '''
+        additional_properties = {}
+        pwa_app = pywinauto.application.Application()
+        #-----Access names
+
+        access_names = [name for name in pywinauto.findbestmatch.build_unique_dict([self.pwa_obj]).keys() if name != '']
+        access_names.sort(key=len)
+        additional_properties.update({'Access names': access_names})
+        #-----
+
+        #-----pwa_type
+        additional_properties.update({'pwa_type': str(type(self.pwa_obj))})
+        #---
+
+        #-----handle
+        try:
+            additional_properties.update({'handle': str(self.pwa_obj.handle)})
+        except:
+            pass
+        #---
+        return additional_properties
 
 
 class Pwa_menu(SWAPYObject):
@@ -854,15 +922,16 @@ class Pwa_toolbar(SWAPYObject):
         additional_children = []
         buttons_count = self.pwa_obj.ButtonCount()
         for button_index in range(buttons_count):
-          try:
-            button_text = self.pwa_obj.Button(button_index).info.text
-            button_object = self._get_swapy_object(self.pwa_obj.Button(button_index))
-          except exceptions.RuntimeError:
-            #button_text = ['Unknown button name1!'] #workaround for RuntimeError: GetButtonInfo failed for button with index 0
-            pass #ignore the button
-          else:
-            button_item = [(button_text, button_object)]
-            additional_children += button_item
+            try:
+                button = self.pwa_obj.Button(button_index)
+                button_text = button.info.text
+                button_object = self._get_swapy_object(button)
+            except exceptions.RuntimeError:
+                #button_text = ['Unknown button name1!'] #workaround for RuntimeError: GetButtonInfo failed for button with index 0
+                pass #ignore the button
+            else:
+                button_item = [(button_text, button_object)]
+                additional_children += button_item
         return additional_children
         
     def _get_children(self):
@@ -875,28 +944,20 @@ class Pwa_toolbar(SWAPYObject):
 
 class Pwa_toolbar_button(SWAPYObject):
 
-    code_action_pattern = "{parent_var}.Button({index})\n"
+    code_self_pattern = "{var} = {parent_var}.Button({index})\n"
 
     @property
     def _code_self(self):
-        return ""
-
-    @property
-    def _code_action(self):
-        index = self.pwa_obj.index
+        index = self.pwa_obj.info.text
         if isinstance(index, unicode):
-            index = "'%s'" % self.pwa_obj.index.encode('unicode-escape', 'replace')
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
 
-        code = self.code_action_pattern.format(index=index,
-                                               action="{action}",
-                                               var="{var}",
-                                               parent_var="{parent_var}")
+        code = self.code_self_pattern.format(index=index,
+                                             action="{action}",
+                                             var="{var}",
+                                             parent_var="{parent_var}")
         return code
 
-    @property
-    def code_var_pattern(self):
-        raise Exception('Must not be used "code_var_pattern" prop for a Pwa_toolbar_button')
-    
     def _check_visibility(self):
         is_visible = False
         try:
@@ -929,15 +990,16 @@ class Pwa_toolbar_button(SWAPYObject):
         
     def _get_properies(self):
         o = self.pwa_obj
-        props = {'IsCheckable' : o.IsCheckable(),
-                 'IsChecked' : o.IsChecked(),
+        props = {'IsCheckable': o.IsCheckable(),
+                 'IsChecked': o.IsChecked(),
                  'IsEnabled': o.IsEnabled(),
-                 'IsPressable' : o.IsPressable(),
-                 'IsPressed' : o.IsPressed(),
-                 'Rectangle' : o.Rectangle(),
-                 'State' : o.State(),
-                 'Style' : o.Style(),
-                 'index' : o.index,}
+                 'IsPressable': o.IsPressable(),
+                 'IsPressed': o.IsPressed(),
+                 'Rectangle': o.Rectangle(),
+                 'State': o.State(),
+                 'Style': o.Style(),
+                 'index': o.index,
+                 'text': o.info.text}
         return props
         
     def Highlight_control(self): 
