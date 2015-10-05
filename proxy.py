@@ -527,6 +527,10 @@ class VirtualSWAPYObject(SWAPYObject):
 
     @property
     def _code_self(self):
+
+        """
+        Rewrite default behavior.
+        """
         return ""
 
     @property
@@ -638,8 +642,7 @@ class PC_system(SWAPYObject):
 
 
 class Pwa_window(SWAPYObject):
-    code_self_pattern = "handle = pywinauto.findwindows.find_windows(title=u'{title}', class_name='{cls_name}')[0]\n" \
-                        "{var} = pwa_app.window_(handle=handle)\n"
+    code_self_pattern = "{var} = app.Window_(title=u'{title}', class_name='{cls_name}')\n"
 
     @property
     def _code_self(self):
