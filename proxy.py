@@ -20,8 +20,8 @@
 
 import pywinauto
 import sys, os
+import string
 import time
-import wx
 import thread
 import exceptions
 import platform
@@ -34,6 +34,7 @@ proxy module for pywinauto
 
 
 pywinauto.timings.Timings.window_find_timeout = 1
+
 
 def resource_path(filename):
     if hasattr(sys, '_MEIPASS'):
@@ -49,20 +50,94 @@ def resource_path(filename):
         filename = os.path.join(os.path.dirname(sys.argv[0]), filename)
     return filename
 
-class SWAPYObject(object):
-    '''
+
+class CodeGenerator(object):
+
+    """
+    Code generation behavior. Expect be used as one of base classes SWAPYObject's wrapper.
+    """
+    code_var_name = None  # Default value, will be rewrote with composed variable name as an instance attribute.
+    code_var_counters = {}  # Default value, will be rewrote as instance's class attribute by get_code_id(cls)
+
+    @classmethod
+    def get_code_id(cls, var_prefix='default'):
+
+        """
+        Increment code id. For example, the script already has `button1=...` line,
+        so for a new button make `button2=... code`.
+        The idea is the CodeGenerator's default value ctrl_code_id will be overwrote by this funk
+        as a control wrapper class(e.g Pwa_window) attribute.
+        Its non default value will be shared for all the control wrapper class(e.g Pwa_window) instances.
+        """
+        if var_prefix not in cls.code_var_counters:
+            cls.code_var_counters[var_prefix] = 1
+        else:
+            cls.code_var_counters[var_prefix] += 1
+        return cls.code_var_counters[var_prefix]
+
+    def get_code_self(self):
+        pattern = self._code_self
+        if pattern:
+            self.code_var_name = self.code_var_pattern.format(id=self.get_code_id(self.code_var_pattern))
+            format_kwargs = {'var': self.code_var_name}
+            if self.parent or self.code_parents[0]:
+                if self.parent:
+                    format_kwargs['parent_var'] = self.parent.code_var_name
+                if self.code_parents[0]:
+                    format_kwargs['main_parent_var'] = self.code_parents[0].code_var_name
+                return pattern.format(**format_kwargs)
+        return ""
+
+    def get_code_action(self, action):
+        format_kwargs = {'var': self.code_var_name,
+                         'action': action}
+        if self.parent:
+            format_kwargs['parent_var'] = self.parent.code_var_name
+
+        if self.code_parents[0]:
+            format_kwargs['main_parent_var'] = self.code_parents[0].code_var_name
+
+        return self._code_action.format(**format_kwargs)
+
+    def Get_code(self, action_id):
+
+        """
+        window code
+        """
+
+        code = ""
+
+        if self.code_var_name is None:
+            # parent/s code is not inited
+            code_parents = self.code_parents[:]
+            code_parents.reverse()
+            code += ''.join([p.get_code_self() for p in code_parents if not p.code_var_name])
+
+            code += self.get_code_self()
+
+        action = ACTIONS[action_id]
+        code += self.get_code_action(action)
+
+        return code
+
+
+class PwaWrapper(object):
+
+    """
     Base proxy class for pywinauto objects.
-    
-    '''
-    def __init__(self, pwa_obj):
+    Used multiple inheritance to show that CodeGenerator does only part of the behavior.
+    """
+
+    def __init__(self, pwa_obj, parent=None):
         '''
         Constructor
         '''
         #original pywinauto object
         self.pwa_obj = pwa_obj
+        self.parent = parent
         default_sort_key = lambda name: name[0].lower()
         self.subitems_sort_key = default_sort_key
-        
+
     def GetProperties(self):
         '''
         Return dict of original + additional properies
@@ -131,23 +206,12 @@ class SWAPYObject(object):
                 allowed_actions.append((id,action))
         allowed_actions.sort(key=lambda name: name[1].lower())
         return allowed_actions
-        
-    def Get_code(self, action_id):
-        '''
-        Generate code for pywinauto module
-        '''
-        action = ACTIONS[action_id]
-        code = "\
-ctrl = window['"+self._get_additional_properties()['Access names'][0].encode('unicode-escape', 'replace')+"']\n\
-ctrl."+action+"()\n"
-        return code
-        
+
     def Highlight_control(self): 
         if self._check_visibility():
           thread.start_new_thread(self._highlight_control,(3,))
         return 0
-        
-        
+
     def _get_properies(self):
         '''
         Get original pywinauto's object properties
@@ -244,8 +308,7 @@ ctrl."+action+"()\n"
         #uniq_names = pywinauto.findbestmatch.build_unique_dict(children)
         names_children = map(_get_name_control, children)
         return names_children
-        
-        
+
     def _get_additional_children(self):
         '''
         Get additonal children, like for a menu, submenu, subtab, etc.
@@ -277,39 +340,35 @@ ctrl."+action+"()\n"
             return 'tree_view'
         elif type(obj) == pywinauto.controls.common_controls._treeview_element:
             return 'tree_item'
-        elif 1==0:
-            return 'other'
         else:
             return 'unknown'
         
     def _get_swapy_object(self, pwa_obj):
         pwa_type = self._get_pywinobj_type(pwa_obj)
         #print pwa_type
-        if pwa_type == 'smt_NEW':
-            return smt_NEW(pwa_obj)
         if pwa_type == 'window':
-            return Pwa_window(pwa_obj)
+            return Pwa_window(pwa_obj, self)
         if pwa_type == 'menu':
-            return Pwa_menu(pwa_obj)
+            return Pwa_menu(pwa_obj, self)
         if pwa_type == 'menu_item':
-            return Pwa_menu_item(pwa_obj)
+            return Pwa_menu_item(pwa_obj, self)
         if pwa_type == 'combobox':
-            return Pwa_combobox(pwa_obj)
+            return Pwa_combobox(pwa_obj, self)
         if pwa_type == 'listview':
-            return Pwa_listview(pwa_obj)
+            return Pwa_listview(pwa_obj, self)
         if pwa_type == 'tab':
-            return Pwa_tab(pwa_obj)
+            return Pwa_tab(pwa_obj, self)
         if pwa_type == 'toolbar':
-            return Pwa_toolbar(pwa_obj)
+            return Pwa_toolbar(pwa_obj, self)
         if pwa_type == 'toolbar_button':
-            return Pwa_toolbar_button(pwa_obj)
+            return Pwa_toolbar_button(pwa_obj, self)
         if pwa_type == 'tree_view':
-            return Pwa_tree(pwa_obj)
+            return Pwa_tree(pwa_obj, self)
         if pwa_type == 'tree_item':
-            return Pwa_tree_item(pwa_obj)
+            return Pwa_tree_item(pwa_obj, self)
         else:
-            return SWAPYObject(pwa_obj)
-            
+            return SWAPYObject(pwa_obj, self)
+
     def _highlight_control(self, repeat = 1):
         while repeat > 0:
             repeat -= 1
@@ -358,8 +417,55 @@ ctrl."+action+"()\n"
         else:
             is_exist = obj.Exists()
         return is_exist
-        
-        
+
+
+class SWAPYObject(PwaWrapper, CodeGenerator):
+    code_self_pattern = "{var} = {parent_var}['{access_name}']\n"
+    code_action_pattern = "{var}.{action}()\n"
+    main_parent_type = None
+
+    def __init__(self, *args, **kwargs):
+        super(SWAPYObject, self).__init__(*args, **kwargs)
+        self.code_parents = self.get_code_parents()
+
+    def get_code_parents(self):
+        grab_all = True if not self.main_parent_type else False
+        code_parents = []
+        parent = self.parent
+        while parent:
+            if not grab_all and isinstance(parent, self.main_parent_type):
+                grab_all = True
+
+            if grab_all:
+                code_parents.append(parent)
+            parent = parent.parent
+        return code_parents
+
+    @property
+    def _code_self(self):
+        access_name = self._get_additional_properties()['Access names'][0].encode('unicode-escape', 'replace')
+        code = self.code_self_pattern.format(access_name=access_name,
+                                             parent_var="{parent_var}",
+                                             var="{var}")
+        return code
+
+    @property
+    def _code_action(self):
+        code = self.code_action_pattern
+        return code
+
+    @property
+    def code_var_pattern(self):
+
+        var_prefix = self.__class__.__name__.lower()
+        if 'Class' in self.GetProperties():
+            crtl_class = filter(lambda c: c in string.ascii_letters, self.GetProperties()['Class']).lower()
+            if crtl_class:
+                var_prefix = crtl_class
+
+        return "{var_prefix}{id}".format(var_prefix=var_prefix,
+                                         id="{id}")
+
 
 class VirtualSWAPYObject(SWAPYObject):
     def __init__(self, parent, index):
@@ -369,24 +475,32 @@ class VirtualSWAPYObject(SWAPYObject):
         self._check_visibility = self.parent._check_visibility
         self._check_actionable = self.parent._check_actionable
         self._check_existence = self.parent._check_existence
+        self.code_parents = self.get_code_parents()
+
+    code_action_pattern = "{parent_var}.{action}({index})\n"
+
+    @property
+    def _code_self(self):
+        return ""
+
+    @property
+    def _code_action(self):
+        index = self.index
+        if isinstance(index, unicode):
+            index = "'%s'" % self.index.encode('unicode-escape', 'replace')
+        code = self.code_action_pattern.format(index=index,
+                                               action="{action}",
+                                               var="{var}",
+                                               parent_var="{parent_var}")
+        return code
+
+    @property
+    def code_var_pattern(self):
+        raise Exception('Must not be used "code_var_pattern" prop for a VirtualSWAPYObject')
         
     def Select(self):
         self.parent.pwa_obj.Select(self.index)
-    
-    def Get_code(self, action_id):
-        '''
-        Generate code for pywinauto module
-        '''
-        action = ACTIONS[action_id]
-        arg = ""
-        try:
-            arg = "'"+self.index.encode('unicode-escape', 'replace')+"'"
-        except:
-            arg = str(self.index)
-        code = "\
-ctrl."+action+"("+arg+")\n"
-        return code
-    
+
     def _get_properies(self):
         return {}
     
@@ -396,16 +510,16 @@ ctrl."+action+"("+arg+")\n"
     def Highlight_control(self): 
         pass
         return 0
-    '''
-    def Get_code(self, action_id):
-        
-        return '#---Not implemented yet.---\n'
-    '''
-        
+
     
 class PC_system(SWAPYObject):
     handle = 0
-    
+
+    @property
+    def _code_self(self):
+        # Prevent code generation
+        return ""
+
     def Get_subitems(self):
         '''
         returns [(window_text, swapy_obj),...]
@@ -451,7 +565,7 @@ class PC_system(SWAPYObject):
         return windows
 
     def _get_properies(self):
-        info = { 'Platform' : platform.platform(), \
+        info = {'Platform' : platform.platform(), \
                 'Processor' : platform.processor(), \
                 'PC name' : platform.node() }
                 
@@ -462,13 +576,7 @@ class PC_system(SWAPYObject):
         No actions for PC_system
         '''
         return []
-        
-    def Get_code(self, action_id):
-        '''
-        No code for PC_system
-        '''
-        return ''
-        
+
     def Highlight_control(self): 
         pass
         return 0
@@ -482,7 +590,18 @@ class PC_system(SWAPYObject):
     def _check_existence(self):
         return True
 
+
 class Pwa_window(SWAPYObject):
+    code_self_pattern = "handle = pywinauto.findwindows.find_windows(title=u'{title}', class_name='{cls_name}')[0]\n" \
+                        "{var} = pwa_app.window_(handle=handle)\n"
+
+    @property
+    def _code_self(self):
+        code = self.code_self_pattern.format(title=self.pwa_obj.WindowText().encode('unicode-escape', 'replace'),
+                                             cls_name=self.pwa_obj.Class(),
+                                             var="{var}")
+        return code
+
     def _get_additional_children(self):
         '''
         Add menu object as children
@@ -493,18 +612,8 @@ class Pwa_window(SWAPYObject):
             menu_child = [('!Menu', self._get_swapy_object(menu))]
             additional_children += menu_child
         return additional_children
-        
-    def Get_code(self, action_id):
-        '''
-        winod code
-        '''
-        action = ACTIONS[action_id]
-        code = "\
-w_handle = pywinauto.findwindows.find_windows(title=u'"+ self.pwa_obj.WindowText().encode('unicode-escape', 'replace') +"', class_name='"+ self.pwa_obj.Class() +"')[0]\n\
-window = pwa_app.window_(handle=w_handle)\n\
-window."+action+"()\n"
-        return code
-        
+
+
 class Pwa_menu(SWAPYObject):
 
     def _check_visibility(self):
@@ -565,8 +674,20 @@ class Pwa_menu(SWAPYObject):
     def Highlight_control(self): 
         pass
         return 0
-        
+
+
 class Pwa_menu_item(Pwa_menu):
+
+    main_parent_type = Pwa_window
+    code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')\n"
+
+    @property
+    def _code_self(self):
+        menu_path = self.get_menuitems_path().encode('unicode-escape', 'replace')
+        code = self.code_self_pattern.format(menu_path=menu_path,
+                                             main_parent_var="{main_parent_var}",
+                                             var="{var}")
+        return code
 
     def _check_actionable(self):
         if self.pwa_obj.State() == 3: #grayed
@@ -605,18 +726,10 @@ class Pwa_menu_item(Pwa_menu):
             menu = owner_item.menu
             owner_item = menu.owner_item
         return '->'.join(path[::-1])
-        
-    def Get_code(self, action_id):
-        '''
-        Generate code for pywinauto module
-        '''
-        action = ACTIONS[action_id]
-        code = "\
-window.MenuItem(u'"+self.get_menuitems_path().encode('unicode-escape', 'replace')+"')."+action+"()\n\
-"
-        return code
-        
+
+
 class Pwa_combobox(SWAPYObject):
+
     def _get_additional_children(self):
         '''
         Add ComboBox items as children
@@ -626,7 +739,8 @@ class Pwa_combobox(SWAPYObject):
         for item_name in items_texts:
             additional_children += [(item_name, virtual_combobox_item(self, item_name))]
         return additional_children
-    
+
+
 class virtual_combobox_item(VirtualSWAPYObject):
 
     def _get_properies(self):
@@ -637,7 +751,8 @@ class virtual_combobox_item(VirtualSWAPYObject):
                 index = i
                 break
         return {'Index' : index, 'Text' : text} # .encode('unicode-escape', 'replace')}
-        
+
+
 class Pwa_listview(SWAPYObject):
     def _get_additional_children(self):
         '''
@@ -648,7 +763,8 @@ class Pwa_listview(SWAPYObject):
             item = self.pwa_obj.GetItem(index)
             additional_children += [(item['text'], virtual_listview_item(self, index))]
         return additional_children
-    
+
+
 class virtual_listview_item(VirtualSWAPYObject):
 
     def _get_properies(self):
@@ -658,6 +774,7 @@ class virtual_listview_item(VirtualSWAPYObject):
                 item_properties.update(item_props)
                 break
         return item_properties
+
 
 class Pwa_tab(SWAPYObject):
     def _get_additional_children(self):
@@ -669,13 +786,15 @@ class Pwa_tab(SWAPYObject):
             text = self.pwa_obj.GetTabText(index)
             additional_children += [(text, virtual_tab_item(self, index))]
         return additional_children
-    
+
+
 class virtual_tab_item(VirtualSWAPYObject):
 
     def _get_properies(self):
         item_properties = {'Index' : self.index,
                            'Texts': self.parent.pwa_obj.GetTabText(self.index)}
         return item_properties
+
 
 class Pwa_toolbar(SWAPYObject):
 
@@ -703,8 +822,31 @@ class Pwa_toolbar(SWAPYObject):
         
         '''
         return []
-        
+
+
 class Pwa_toolbar_button(SWAPYObject):
+
+    code_action_pattern = "{parent_var}.Button({index})\n"
+
+    @property
+    def _code_self(self):
+        return ""
+
+    @property
+    def _code_action(self):
+        index = self.pwa_obj.index
+        if isinstance(index, unicode):
+            index = "'%s'" % self.pwa_obj.index.encode('unicode-escape', 'replace')
+
+        code = self.code_action_pattern.format(index=index,
+                                               action="{action}",
+                                               var="{var}",
+                                               parent_var="{parent_var}")
+        return code
+
+    @property
+    def code_var_pattern(self):
+        raise Exception('Must not be used "code_var_pattern" prop for a Pwa_toolbar_button')
     
     def _check_visibility(self):
         is_visible = False
@@ -752,16 +894,7 @@ class Pwa_toolbar_button(SWAPYObject):
     def Highlight_control(self): 
         pass
         return 0
-        
-    def Get_code(self, action_id):
-        '''
-        Generate code for pywinauto module
-        '''
-        action = ACTIONS[action_id]
-        arg = str(self.pwa_obj.index)
-        code = "\
-ctrl.Button("+arg+")."+action+"()\n"
-        return code
+
         
 class Pwa_tree(SWAPYObject):
 
@@ -784,7 +917,23 @@ class Pwa_tree(SWAPYObject):
         pass
         return 0
 
+
 class Pwa_tree_item(SWAPYObject):
+
+    main_parent_type = Pwa_tree
+    code_self_pattern = "{var} = {main_parent_var}.GetItem({path})\n"
+
+    @property
+    def _code_self(self):
+        path = self.path
+        for i in range(len(path)):
+            if isinstance(path[i], unicode):
+                path[i] = "'%s'" % path[i].encode('unicode-escape', 'replace')
+
+        code = self.code_self_pattern.format(path=path,
+                                             var="{var}",
+                                             main_parent_var="{main_parent_var}")
+        return code
 
     def _get_properies(self):
         o = self.pwa_obj
@@ -795,12 +944,18 @@ class Pwa_tree_item(SWAPYObject):
 
     def _check_visibility(self):
         return True
+        # TODO: It seems like pywinauto bug
+        #return self.pwa_obj.EnsureVisible()
         
     def _check_existence(self):
         return True
         
     def _check_actionable(self):
-        return True
+        if self.parent.pwa_obj != self.pwa_obj.tree_ctrl:
+            # the parent is also tree item
+            return self.parent.pwa_obj.IsExpanded()
+        else:
+            return True
         
     def _get_children(self):
         return []
@@ -823,12 +978,3 @@ class Pwa_tree_item(SWAPYObject):
             sub_item = [(item_text, obj)]
             additional_children += sub_item
         return additional_children
-    
-    def Get_code(self, action_id):
-        '''
-        Generate code for pywinauto module
-        '''
-        action = ACTIONS[action_id]
-        code = "\
-ctrl.GetItem("+str(self.path)+")."+action+"()\n"
-        return code        
