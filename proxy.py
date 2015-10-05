@@ -54,8 +54,9 @@ def resource_path(filename):
 class CodeGenerator(object):
 
     """
-    Code generation behavior. Expect be used as one of base classes SWAPYObject's wrapper.
+    Code generation behavior. Expect be used as one of base classes of the SWAPYObject's wrapper.
     """
+
     code_var_name = None  # Default value, will be rewrote with composed variable name as an instance attribute.
     code_var_counters = {}  # Default value, will be rewrote as instance's class attribute by get_code_id(cls)
 
@@ -65,10 +66,11 @@ class CodeGenerator(object):
         """
         Increment code id. For example, the script already has `button1=...` line,
         so for a new button make `button2=... code`.
-        The idea is the CodeGenerator's default value ctrl_code_id will be overwrote by this funk
-        as a control wrapper class(e.g Pwa_window) attribute.
-        Its non default value will be shared for all the control wrapper class(e.g Pwa_window) instances.
+        The idea is the CodeGenerator's default value code_var_counters['var_prefix'] will be overwrote by this funk
+        as a control's wrapper class(e.g Pwa_window) attribute.
+        Its non default value will be shared for all the control's wrapper class(e.g Pwa_window) instances.
         """
+
         if var_prefix not in cls.code_var_counters:
             cls.code_var_counters[var_prefix] = 1
         else:
@@ -76,6 +78,16 @@ class CodeGenerator(object):
         return cls.code_var_counters[var_prefix]
 
     def get_code_self(self):
+
+        """
+        Composes code to access the control. E. g.: `button1 = calcframe1['Button12']`
+        Pattern may use the next argument:
+        * {var}
+        * {parent_var}
+        * {main_parent_var}
+        E. g.: `"{var} = {parent_var}['access_name']\n"`.
+        """
+
         pattern = self._code_self
         if pattern:
             self.code_var_name = self.code_var_pattern.format(id=self.get_code_id(self.code_var_pattern))
@@ -89,6 +101,17 @@ class CodeGenerator(object):
         return ""
 
     def get_code_action(self, action):
+
+        """
+        Composes code to run an action. E. g.: `button1.Click()`
+        Pattern may use the next argument:
+        * {var}
+        * {action}
+        * {parent_var}
+        * {main_parent_var}
+        E. g.: `"{var}.{action}()\n"`.
+        """
+
         format_kwargs = {'var': self.code_var_name,
                          'action': action}
         if self.parent:
@@ -102,21 +125,21 @@ class CodeGenerator(object):
     def Get_code(self, action_id):
 
         """
-        window code
+        Return all the code nneded to make the action on the control.
+        Walk parents if needed.
         """
 
         code = ""
-
         if self.code_var_name is None:
             # parent/s code is not inited
             code_parents = self.code_parents[:]
-            code_parents.reverse()
-            code += ''.join([p.get_code_self() for p in code_parents if not p.code_var_name])
+            code_parents.reverse()  # start from the top level parent
 
-            code += self.get_code_self()
+            code += ''.join([p.get_code_self() for p in code_parents if not p.code_var_name])  # parents code
+            code += self.get_code_self()  # self access code
 
         action = ACTIONS[action_id]
-        code += self.get_code_action(action)
+        code += self.get_code_action(action)  # self action code
 
         return code
 
@@ -125,7 +148,6 @@ class PwaWrapper(object):
 
     """
     Base proxy class for pywinauto objects.
-    Used multiple inheritance to show that CodeGenerator does only part of the behavior.
     """
 
     def __init__(self, pwa_obj, parent=None):
@@ -420,6 +442,11 @@ class PwaWrapper(object):
 
 
 class SWAPYObject(PwaWrapper, CodeGenerator):
+
+    """
+    Mix the pywinauto wrapper and the codegenerator
+    """
+
     code_self_pattern = "{var} = {parent_var}['{access_name}']\n"
     code_action_pattern = "{var}.{action}()\n"
     main_parent_type = None
@@ -429,6 +456,12 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         self.code_parents = self.get_code_parents()
 
     def get_code_parents(self):
+
+        """
+        Collect a list of all parents needed to access the control.
+        Some parents may be excluded regarding to the `self.main_parent_type` parameter.
+        """
+
         grab_all = True if not self.main_parent_type else False
         code_parents = []
         parent = self.parent
@@ -443,6 +476,11 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
     @property
     def _code_self(self):
+
+        """
+        Default _code_self.
+        """
+
         access_name = self._get_additional_properties()['Access names'][0].encode('unicode-escape', 'replace')
         code = self.code_self_pattern.format(access_name=access_name,
                                              parent_var="{parent_var}",
@@ -451,11 +489,19 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
     @property
     def _code_action(self):
+
+        """
+        Default _code_action.
+        """
         code = self.code_action_pattern
         return code
 
     @property
     def code_var_pattern(self):
+
+        """
+        Compose variable prefix, based on the control Class or SWAPY wrapper class name.
+        """
 
         var_prefix = self.__class__.__name__.lower()
         if 'Class' in self.GetProperties():
