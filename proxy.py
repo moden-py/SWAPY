@@ -629,15 +629,14 @@ class PC_system(SWAPYObject):
         for w_handle in handles:
             wind = app.window_(handle=w_handle)
             if w_handle == taskbar_handle:
-                texts = ['TaskBar']
+                title = 'TaskBar'
             else:
                 texts = wind.Texts()
-            while texts.count(''):
-                texts.remove('')
-            title = ', '.join(texts)
-            if not title:
-                title = 'Window#%s' % w_handle
-            #title = title.encode('cp1251', 'replace')
+                texts = filter(bool, texts)  # filter out '' and None items
+                if not texts:
+                    title = 'Window#%s' % w_handle
+                else:
+                    title = ', '.join(texts)
             windows.append((title, self._get_swapy_object(wind)))
         windows.sort(key=lambda name: name[0].lower())
         #-----------------------
