@@ -824,13 +824,15 @@ class virtual_listview_item(VirtualSWAPYObject):
 
 class Pwa_tab(SWAPYObject):
     def _get_additional_children(self):
-        '''
+
+        """
         Add TabControl items as children
-        '''
+        """
+
         additional_children = []
         for index in range(self.pwa_obj.TabCount()):
             text = self.pwa_obj.GetTabText(index)
-            additional_children += [(text, virtual_tab_item(self, index))]
+            additional_children += [(text, virtual_tab_item(self, text))]
         return additional_children
 
 
