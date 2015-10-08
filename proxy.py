@@ -926,6 +926,17 @@ class Pwa_tab(SWAPYObject):
 
 class virtual_tab_item(VirtualSWAPYObject):
 
+    @property
+    def _code_action(self):
+        index = self.parent.pwa_obj.GetTabText(self.index)
+        if isinstance(index, unicode):
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
+        code = self.code_action_pattern.format(index=index,
+                                               action="{action}",
+                                               var="{var}",
+                                               parent_var="{parent_var}")
+        return code
+
     def _get_properies(self):
         item_properties = {'Index' : self.index,
                            'Texts': self.parent.pwa_obj.GetTabText(self.index)}
