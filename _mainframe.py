@@ -193,17 +193,13 @@ class Frame1(wx.Frame):
     def menu_action(self, event):
         id = event.Id
         #print id
-        if 99 < id < 200:
+        if 99 < id < 200 or 299 < id < 400:
             # object browser menu
             # regular action
             self.make_action(id)
         elif 199 < id < 300:
             #properties viewer menu
             self.clipboard_action(id)
-        elif 299 < id < 400:
-            # object browser menu
-            # extended action
-            self.extended_action(id)
         else:
             raise RuntimeError("Unknown menu id")
             pass
@@ -254,18 +250,21 @@ class Frame1(wx.Frame):
         #obj = self.treeCtrl_ObjectsBrowser.GetItemData(tree_item).GetData()
         obj = self.GLOB_last_rclick_tree_obj
         #self.textCtrl_Editor.AppendText(obj.Get_code(menu_id))
-        action = const.ACTIONS[menu_id]
+        try:
+            action = const.ACTIONS[menu_id]
+        except KeyError:
+            # Extended action
+            extended_action = const.EXTENDED_ACTIONS[menu_id]
+            obj.SetCodestyle(menu_id)
+            code = obj.Get_code()
+        else:
+            # Regular action
+            code = obj.Get_code(action)
+            obj.Exec_action(action)
+
         self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
-        self.textCtrl_Editor.SetValue(obj.Get_code(action))
-        obj.Exec_action(menu_id)
+        self.textCtrl_Editor.SetValue(code)
 
-    def extended_action(self, menu_id):
-        obj = self.GLOB_last_rclick_tree_obj
-
-        # action = const.ACTIONS[menu_id]
-        # self.textCtrl_Editor.SetValue(obj.Get_code(action))
-        # obj.Exec_action(menu_id)
-        print obj
         
     def _init_windows_tree(self):
         self.treeCtrl_ObjectsBrowser.DeleteAllItems()
