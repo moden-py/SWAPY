@@ -109,19 +109,29 @@ class PwaWrapper(object):
         return 0
         
     def Get_actions(self):
-        '''
+
+        """
         return allowed actions for this object. [(id,action_name),...]
-        '''
+        """
+
         allowed_actions = []
         try:
             obj_actions = dir(self.pwa_obj.WrapperObject())
         except:
             obj_actions = dir(self.pwa_obj)
-        for id, action in ACTIONS.items():
+        for _id, action in ACTIONS.items():
             if action in obj_actions:
-                allowed_actions.append((id,action))
+                allowed_actions.append((_id, action))
         allowed_actions.sort(key=lambda name: name[1].lower())
         return allowed_actions
+
+    def Get_extended_actions(self):
+
+        """
+        Extended actions
+        """
+
+        return []
 
     def Highlight_control(self): 
         if self._check_visibility():
@@ -638,6 +648,14 @@ class Pwa_window(SWAPYObject):
             pass
         #---
         return additional_properties
+
+    def Get_extended_actions(self):
+
+        """
+        Extended actions
+        """
+
+        return [(_id, action) for _id, action in EXTENDED_ACTIONS.items()]
 
 
 class Pwa_menu(SWAPYObject):

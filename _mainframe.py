@@ -127,8 +127,9 @@ class Frame1(wx.Frame):
 
     def __init__(self, parent):
         self._init_ctrls(parent)
-        self._init_windows_tree()   
-        #self.textCtrl_Editor.AppendText('from pywinauto.application import Application\n\n')
+        self._init_windows_tree()
+        self.textCtrl_Editor.SetForegroundColour(wx.LIGHT_GREY)
+        self.textCtrl_Editor.AppendText('#Perform an action - right click on item in the object browser.')
         self.prop_updater = prop_viewer_updater(self.listCtrl_Properties)
         self.tree_updater = tree_updater(self.treeCtrl_ObjectsBrowser)
         
@@ -151,23 +152,32 @@ class Frame1(wx.Frame):
         self.GLOB_last_rclick_tree_obj = obj
         #self.treeCtrl_ObjectsBrowser.SelectItem(tree_item)
         if obj._check_existence():       
-          actions = obj.Get_actions()
-          if actions:
-              for id, action_name in actions:
-                  menu.Append(id, action_name)
-                  if not obj._check_actionable():
-                      menu.Enable(id, False)
-          else:
-              menu.Append(0, 'No actions')
-              menu.Enable(0, False)
-          self.PopupMenu(menu)     
-          menu.Destroy()
+            actions = obj.Get_actions()
+            extended_actions = obj.Get_extended_actions()
+            if not actions and not extended_actions:
+                menu.Append(0, 'No actions')
+                menu.Enable(0, False)
+            else:
+                if extended_actions:
+                    for _id, extended_action_name in extended_actions:
+                        menu.Append(_id, extended_action_name)
+                        if not obj._check_actionable():
+                            menu.Enable(_id, False)
+                    menu.AppendSeparator()
+
+                for _id, action_name in actions:
+                    menu.Append(_id, action_name)
+                    if not obj._check_actionable():
+                        menu.Enable(_id, False)
+
+            self.PopupMenu(menu)
+            menu.Destroy()
         else:
-          self._init_windows_tree()
-          tree_item = self.treeCtrl_ObjectsBrowser.GetRootItem()
-          obj = self.treeCtrl_ObjectsBrowser.GetItemData(tree_item).GetData()
-          self.prop_updater.props_update(obj)
-          self.tree_updater.tree_update(tree_item, obj)
+            self._init_windows_tree()
+            tree_item = self.treeCtrl_ObjectsBrowser.GetRootItem()
+            obj = self.treeCtrl_ObjectsBrowser.GetItemData(tree_item).GetData()
+            self.prop_updater.props_update(obj)
+            self.tree_updater.tree_update(tree_item, obj)
     
     def OnlistCtrl_PropertiesListItemRightClick(self, event):
         self.GLOB_prop_item_index = event.GetIndex()
@@ -184,13 +194,18 @@ class Frame1(wx.Frame):
         id = event.Id
         #print id
         if 99 < id < 200:
-            #object browser menu
+            # object browser menu
+            # regular action
             self.make_action(id)
         elif 199 < id < 300:
             #properties viewer menu
             self.clipboard_action(id)
+        elif 299 < id < 400:
+            # object browser menu
+            # extended action
+            self.extended_action(id)
         else:
-            #Unknown menu id
+            raise RuntimeError("Unknown menu id")
             pass
     
     def clipboard_action(self, menu_id):
@@ -240,8 +255,17 @@ class Frame1(wx.Frame):
         obj = self.GLOB_last_rclick_tree_obj
         #self.textCtrl_Editor.AppendText(obj.Get_code(menu_id))
         action = const.ACTIONS[menu_id]
+        self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
         self.textCtrl_Editor.SetValue(obj.Get_code(action))
         obj.Exec_action(menu_id)
+
+    def extended_action(self, menu_id):
+        obj = self.GLOB_last_rclick_tree_obj
+
+        # action = const.ACTIONS[menu_id]
+        # self.textCtrl_Editor.SetValue(obj.Get_code(action))
+        # obj.Exec_action(menu_id)
+        print obj
         
     def _init_windows_tree(self):
         self.treeCtrl_ObjectsBrowser.DeleteAllItems()
