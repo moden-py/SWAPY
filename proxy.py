@@ -353,9 +353,9 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     Mix the pywinauto wrapper and the codegenerator
     """
 
-    code_self_pattern_attr = "{var} = {parent_var}.{access_name}\n"
-    code_self_pattern_item = "{var} = {parent_var}['{access_name}']\n"
-    code_action_pattern = "{var}.{action}()\n"
+    code_self_pattern_attr = "{var} = {parent_var}.{access_name}"
+    code_self_pattern_item = "{var} = {parent_var}['{access_name}']"
+    code_action_pattern = "{var}.{action}()"
     main_parent_type = None
 
     def __init__(self, *args, **kwargs):
@@ -412,6 +412,14 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         return code
 
     @property
+    def _code_close(self):
+
+        """
+        Default _code_close.
+        """
+        return ""
+
+    @property
     def code_var_pattern(self):
 
         """
@@ -438,7 +446,7 @@ class VirtualSWAPYObject(SWAPYObject):
         self._check_existence = self.parent._check_existence
         self.code_parents = self.get_code_parents()
 
-    code_action_pattern = "{parent_var}.{action}({index})\n"
+    code_action_pattern = "{parent_var}.{action}({index})"
 
     @property
     def _code_self(self):
@@ -486,7 +494,7 @@ class PC_system(SWAPYObject):
     def _code_self(self):
         # code = self.code_self_pattern.format(var="{var}")
         # return code
-        return ""
+        return "from pywinauto.application import Application"
     #
     # @property
     # def code_var_pattern(self):
@@ -563,9 +571,9 @@ class PC_system(SWAPYObject):
 
 
 class Pwa_window(SWAPYObject):
-    code_self_pattern_attr = "{var} = app_{var}.{access_name}\n"
-    code_self_pattern_item = "{var} = app_{var}['{access_name}']\n"
-    #code_self_pattern = "{var} = {parent_var}.Window_(title=u'{title}', class_name='{cls_name}')\n"
+    code_self_pattern_attr = "{var} = app_{var}.{access_name}"
+    code_self_pattern_item = "{var} = app_{var}['{access_name}']"
+    code_self_close = "app_{var}.Kill_()"
 
     @property
     def _code_self(self):
@@ -573,12 +581,24 @@ class Pwa_window(SWAPYObject):
         if not self._get_additional_properties()['Access names']:
             raise NotImplementedError
         else:
-            code += "app_{var} = Application().Connect_(title=u'{title}'," \
+            code += "\napp_{var} = Application().Connect_(title=u'{title}'," \
                     "class_name='{cls_name}')\n".format(title=self.pwa_obj.WindowText().encode('unicode-escape',
                                                                                                'replace'),
                                                         cls_name=self.pwa_obj.Class(),
                                                         var="{var}")
             code += super(Pwa_window, self)._code_self
+
+        return code
+
+    @property
+    def _code_close(self):
+
+        """
+        Rewrite default behavior.
+        """
+
+        code = ""
+        #code = self.code_self_close.format(var="{var}")
 
         return code
 
@@ -685,7 +705,7 @@ class Pwa_menu(SWAPYObject):
 class Pwa_menu_item(Pwa_menu):
 
     main_parent_type = Pwa_window
-    code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')\n"
+    code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')"
 
     @property
     def _code_self(self):
@@ -774,7 +794,7 @@ class Pwa_listview(SWAPYObject):
 
 class listview_item(SWAPYObject):
 
-    code_self_pattern = "{var} = {parent_var}.GetItem('{index}')\n"
+    code_self_pattern = "{var} = {parent_var}.GetItem('{index}')"
 
     @property
     def _code_self(self):
@@ -869,7 +889,7 @@ class Pwa_toolbar(SWAPYObject):
 
 class Pwa_toolbar_button(SWAPYObject):
 
-    code_self_pattern = "{var} = {parent_var}.Button({index})\n"
+    code_self_pattern = "{var} = {parent_var}.Button({index})"
 
     @property
     def _code_self(self):
@@ -957,7 +977,7 @@ class Pwa_tree(SWAPYObject):
 class Pwa_tree_item(SWAPYObject):
 
     main_parent_type = Pwa_tree
-    code_self_pattern = "{var} = {main_parent_var}.GetItem({path})\n"
+    code_self_pattern = "{var} = {main_parent_var}.GetItem({path})"
 
     @property
     def _code_self(self):
