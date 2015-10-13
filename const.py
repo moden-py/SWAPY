@@ -44,8 +44,8 @@ ACTIONS = {101: 'Close',
            123: 'Expand',
            }
 
-EXTENDED_ACTIONS = {301: 'Start',
-                    302: 'Connect',
+EXTENDED_ACTIONS = {301: 'Application.Start',
+                    302: 'Application.Connect',
                     }
             
 VERSION = '0.4.6'

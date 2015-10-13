@@ -599,20 +599,26 @@ class Pwa_window(SWAPYObject):
         return super(Pwa_window, self).__init__(*args, **kwargs)
 
     def __code_self_connect(self):
-        code = "\napp_{var} = Application().Connect_(title=u'{title}'," \
-                    "class_name='{cls_name}')\n".format(title=self.pwa_obj.WindowText().encode('unicode-escape',
-                                                                                               'replace'),
-                                                        cls_name=self.pwa_obj.Class(),
-                                                        var="{var}")
+        title = self.pwa_obj.WindowText().encode('unicode-escape')
+        cls_name = self.pwa_obj.Class()
+        code = "\napp_{var} = Application().Connect(title=u'{title}', " \
+               "class_name='{cls_name}')\n".format(title=title,
+                                                   cls_name=cls_name,
+                                                   var="{var}")
         return code
 
     def __code_self_start(self):
-        print dir(self.pwa_obj)
-        code = "\napp_{var} = Application().Start_(title=u'{title}'," \
-                    "class_name='{cls_name}')\n".format(title=self.pwa_obj.WindowText().encode('unicode-escape',
-                                                                                               'replace'),
-                                                        cls_name=self.pwa_obj.Class(),
-                                                        var="{var}")
+        target_pid = self.pwa_obj.ProcessID()
+        cmd_line = None
+        process_modules = pywinauto.application._process_get_modules_wmi()
+        for pid, name, cmdline in process_modules:
+            if pid == target_pid:
+                cmd_line = cmdline
+                break
+
+        code = "\napp_{var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
+            .format(cmd_line=cmd_line.encode('unicode-escape'),
+                    var="{var}")
         return code
 
     def __code_close_connect(self):
@@ -691,7 +697,7 @@ class Pwa_window(SWAPYObject):
     def SetCodestyle(self, extended_action_id):
 
         """
-        Switch to `Start_` or `Connect_` code
+        Switch to `Start` or `Connect` code
         """
 
         if extended_action_id == 301:  # Start
