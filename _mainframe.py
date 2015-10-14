@@ -128,7 +128,7 @@ class Frame1(wx.Frame):
     def __init__(self, parent):
         self._init_ctrls(parent)
         self._init_windows_tree()
-        #self.textCtrl_Editor.SetForegroundColour(wx.LIGHT_GREY)
+        self.textCtrl_Editor.SetForegroundColour(wx.LIGHT_GREY)
         self.textCtrl_Editor.AppendText('#Perform an action - right click on item in the object browser.')
         self.prop_updater = prop_viewer_updater(self.listCtrl_Properties)
         self.tree_updater = tree_updater(self.treeCtrl_ObjectsBrowser)
@@ -262,7 +262,7 @@ class Frame1(wx.Frame):
             code = obj.Get_code(action)
             obj.Exec_action(action)
 
-        #self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
+        self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
         self.textCtrl_Editor.SetValue(code)
 
         
