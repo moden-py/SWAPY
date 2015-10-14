@@ -26,6 +26,8 @@ import thread
 import exceptions
 import platform
 import warnings
+
+from code_manager import CodeGenerator, check_valid_identifier
 from const import *
 
 '''
@@ -49,99 +51,6 @@ def resource_path(filename):
         ###os.chdir(sys.path.dirname(sys.argv[0]))
         filename = os.path.join(os.path.dirname(sys.argv[0]), filename)
     return filename
-
-
-class CodeGenerator(object):
-
-    """
-    Code generation behavior. Expect be used as one of base classes of the SWAPYObject's wrapper.
-    """
-
-    code_var_name = None  # Default value, will be rewrote with composed variable name as an instance attribute.
-    code_var_counters = {}  # Default value, will be rewrote as instance's class attribute by get_code_id(cls)
-
-    @classmethod
-    def get_code_id(cls, var_prefix='default'):
-
-        """
-        Increment code id. For example, the script already has `button1=...` line,
-        so for a new button make `button2=... code`.
-        The idea is the CodeGenerator's default value code_var_counters['var_prefix'] will be overwrote by this funk
-        as a control's wrapper class(e.g Pwa_window) attribute.
-        Its non default value will be shared for all the control's wrapper class(e.g Pwa_window) instances.
-        """
-
-        if var_prefix not in cls.code_var_counters:
-            cls.code_var_counters[var_prefix] = 1
-        else:
-            cls.code_var_counters[var_prefix] += 1
-        return cls.code_var_counters[var_prefix]
-
-    def get_code_self(self):
-
-        """
-        Composes code to access the control. E. g.: `button1 = calcframe1['Button12']`
-        Pattern may use the next argument:
-        * {var}
-        * {parent_var}
-        * {main_parent_var}
-        E. g.: `"{var} = {parent_var}['access_name']\n"`.
-        """
-
-        pattern = self._code_self
-        if pattern:
-            self.code_var_name = self.code_var_pattern.format(id=self.get_code_id(self.code_var_pattern))
-            format_kwargs = {'var': self.code_var_name}
-            if self.parent or self.code_parents[0]:
-                if self.parent:
-                    format_kwargs['parent_var'] = self.parent.code_var_name
-                if self.code_parents[0]:
-                    format_kwargs['main_parent_var'] = self.code_parents[0].code_var_name
-                return pattern.format(**format_kwargs)
-        return ""
-
-    def get_code_action(self, action):
-
-        """
-        Composes code to run an action. E. g.: `button1.Click()`
-        Pattern may use the next argument:
-        * {var}
-        * {action}
-        * {parent_var}
-        * {main_parent_var}
-        E. g.: `"{var}.{action}()\n"`.
-        """
-
-        format_kwargs = {'var': self.code_var_name,
-                         'action': action}
-        if self.parent:
-            format_kwargs['parent_var'] = self.parent.code_var_name
-
-        if self.code_parents[0]:
-            format_kwargs['main_parent_var'] = self.code_parents[0].code_var_name
-
-        return self._code_action.format(**format_kwargs)
-
-    def Get_code(self, action_id):
-
-        """
-        Return all the code nneded to make the action on the control.
-        Walk parents if needed.
-        """
-
-        code = ""
-        if self.code_var_name is None:
-            # parent/s code is not inited
-            code_parents = self.code_parents[:]
-            code_parents.reverse()  # start from the top level parent
-
-            code += ''.join([p.get_code_self() for p in code_parents if not p.code_var_name])  # parents code
-            code += self.get_code_self()  # self access code
-
-        action = ACTIONS[action_id]
-        code += self.get_code_action(action)  # self action code
-
-        return code
 
 
 class PwaWrapper(object):
@@ -176,27 +85,10 @@ class PwaWrapper(object):
         Can be owerridden for non pywinauto obects
         '''
         subitems = []
+
         subitems += self._get_children()
-        '''
-        for control in children:
-            try:
-                texts = control.Texts()
-            except exceptions.RuntimeError:
-                texts = ['Unknown control name2!'] #workaround
-            while texts.count(''):
-                texts.remove('')
-            c_name = ', '.join(texts)
-            if not c_name:
-                #nontext_controlname = pywinauto.findbestmatch.GetNonTextControlName(control, children)[0]
-                top_level_parent = control.TopLevelParent().Children()
-                nontext_controlname = pywinauto.findbestmatch.GetNonTextControlName(control, top_level_parent)[0]
-                if nontext_controlname:
-                  c_name = nontext_controlname
-                else:
-                  c_name = 'Unknown control name1!'
-            subitems.append((c_name, self._get_swapy_object(control)))
-        '''
         subitems += self._get_additional_children()
+
         subitems.sort(key=self.subitems_sort_key)
         #encode names
         subitems_encoded = []
@@ -205,29 +97,38 @@ class PwaWrapper(object):
             subitems_encoded.append((name, obj))
         return subitems_encoded
         
-    def Exec_action(self, action_id):
+    def Exec_action(self, action):
         '''
         Execute action on the control
         '''
-        action = ACTIONS[action_id]
         #print('self.pwa_obj.'+action+'()')
         exec('self.pwa_obj.'+action+'()')
         return 0
         
     def Get_actions(self):
-        '''
+
+        """
         return allowed actions for this object. [(id,action_name),...]
-        '''
+        """
+
         allowed_actions = []
         try:
             obj_actions = dir(self.pwa_obj.WrapperObject())
         except:
             obj_actions = dir(self.pwa_obj)
-        for id, action in ACTIONS.items():
+        for _id, action in ACTIONS.items():
             if action in obj_actions:
-                allowed_actions.append((id,action))
+                allowed_actions.append((_id, action))
         allowed_actions.sort(key=lambda name: name[1].lower())
         return allowed_actions
+
+    def Get_extended_actions(self):
+
+        """
+        Extended actions
+        """
+
+        return []
 
     def Highlight_control(self): 
         if self._check_visibility():
@@ -246,32 +147,18 @@ class PwaWrapper(object):
         return properties
         
     def _get_additional_properties(self):
-        '''
+
+        """
         Get additonal useful properties, like a handle, process ID, etc.
         Can be overridden by derived class
-        '''
+        """
+
         additional_properties = {}
-        pwa_app = pywinauto.application.Application()
+
         #-----Access names
-        try:
-            #parent_obj = self.pwa_obj.Parent()
-            parent_obj = self.pwa_obj.TopLevelParent()
-        except:
-            pass
-        else:
-            try:
-                #all_controls = parent_obj.Children()
-                all_controls = [pwa_app.window_(handle=ch) for ch in pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
-            except:
-                pass
-            else:
-                access_names = []
-                uniq_names = pywinauto.findbestmatch.build_unique_dict(all_controls)
-                for uniq_name, obj in uniq_names.items():
-                    if uniq_name != '' and obj.WrapperObject() == self.pwa_obj:
-                      access_names.append(uniq_name)
-                access_names.sort(key=len)
-                additional_properties.update({'Access names' : access_names})
+        access_names = [name for name, obj in self.__get_uniq_names(target_control=self.pwa_obj)]
+        if access_names:
+            additional_properties.update({'Access names' : access_names})
         #-----
         
         #-----pwa_type
@@ -287,49 +174,46 @@ class PwaWrapper(object):
         return additional_properties
         
     def _get_children(self):
-        '''
+
+        """
         Return original pywinauto's object children & names
         [(control_text, swapy_obj),...]
-        '''
-        def _get_name_control(control):
-          try:
-              texts = control.Texts()
-          except exceptions.WindowsError:
-            texts = ['Unknown control name2!'] #workaround for WindowsError: [Error 0] ...
-          except exceptions.RuntimeError:
-            texts = ['Unknown control name3!'] #workaround for RuntimeError: GetButtonInfo failed for button with command id 256
-          while texts.count(''):
-            texts.remove('')
-          text = ', '.join(texts)
-          if not text:
-            u_names = []
-            for uniq_name, obj in uniq_names.items():
-              if uniq_name != '' and obj.WrapperObject() == control:
-              #if uniq_name != '' and obj == control:
-                u_names.append(uniq_name)
-            if u_names:
-              u_names.sort(key=len)
-              name = u_names[-1]
+        """
+
+        u_names = None
+        children = []
+        children_controls = self.pwa_obj.Children()
+        for child_control in children_controls:
+            try:
+                texts = child_control.Texts()
+            except exceptions.WindowsError:
+                #texts = ['Unknown control name2!'] #workaround for WindowsError: [Error 0] ...
+                texts = None
+            except exceptions.RuntimeError:
+                #texts = ['Unknown control name3!'] #workaround for RuntimeError: GetButtonInfo failed for button with command id 256
+                texts = None
+
+            if texts:
+                texts = filter(bool, texts)  # filter out '' and None items
+
+            if texts:  # check again after the filtering
+                title = ', '.join(texts)
             else:
-              name = 'Unknown control name1!'
-          else:
-            name = text
-          return (name, self._get_swapy_object(control))
-        
-        pwa_app = pywinauto.application.Application()
-        try:
-          parent_obj = self.pwa_obj.TopLevelParent()
-        except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
-          #For non visible windows
-          #...
-          #InvalidWindowHandle: Handle 0x262710 is not a vaild window handle
-          parent_obj = self.pwa_obj
-        children = self.pwa_obj.Children()
-        visible_controls = [pwa_app.window_(handle=ch) for ch in pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
-        uniq_names = pywinauto.findbestmatch.build_unique_dict(visible_controls)
-        #uniq_names = pywinauto.findbestmatch.build_unique_dict(children)
-        names_children = map(_get_name_control, children)
-        return names_children
+                # .Texts() does not have a useful title, trying get it from the uniqnames
+                if u_names is None:
+                    # init unames list
+                    u_names = self.__get_uniq_names()
+
+                child_uniq_name = [uniq_name for uniq_name, obj in u_names if obj.WrapperObject() == child_control]
+
+                if child_uniq_name:
+                    title = child_uniq_name[-1]
+                else:
+                    # uniqnames has no useful title
+                    title = 'Unknown control name1!'
+            children.append((title, self._get_swapy_object(child_control)))
+
+        return children
 
     def _get_additional_children(self):
         '''
@@ -440,6 +324,35 @@ class PwaWrapper(object):
             is_exist = obj.Exists()
         return is_exist
 
+    def __get_uniq_names(self, target_control=None):
+
+        """
+        Return uniq_names of the control
+        [(uniq_name, obj), ]
+        If target_control specified, apply additional filtering for obj == target_control
+        """
+
+        # TODO: cache this method
+
+        pwa_app = pywinauto.application.Application()  # TODO: do not call .Application() everywhere.
+
+        try:
+            parent_obj = self.pwa_obj.TopLevelParent()
+        except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
+            #For non visible windows
+            #...
+            #InvalidWindowHandle: Handle 0x262710 is not a vaild window handle
+            parent_obj = self.pwa_obj
+        except AttributeError:
+            return []
+
+        visible_controls = [pwa_app.window_(handle=ch) for ch in
+                            pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
+        uniq_names_obj = [(uniq_name, obj) for uniq_name, obj
+                      in pywinauto.findbestmatch.build_unique_dict(visible_controls).items()
+                      if uniq_name != '' and (not target_control or obj.WrapperObject() == target_control)]
+        return sorted(uniq_names_obj, key=lambda name_obj: len(name_obj[0]))  # sort by name
+
 
 class SWAPYObject(PwaWrapper, CodeGenerator):
 
@@ -447,8 +360,9 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     Mix the pywinauto wrapper and the codegenerator
     """
 
-    code_self_pattern = "{var} = {parent_var}['{access_name}']\n"
-    code_action_pattern = "{var}.{action}()\n"
+    code_self_pattern_attr = "{var} = {parent_var}.{access_name}"
+    code_self_pattern_item = "{var} = {parent_var}['{access_name}']"
+    code_action_pattern = "{var}.{action}()"
     main_parent_type = None
 
     def __init__(self, *args, **kwargs):
@@ -480,11 +394,19 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         """
         Default _code_self.
         """
-
-        access_name = self._get_additional_properties()['Access names'][0].encode('unicode-escape', 'replace')
-        code = self.code_self_pattern.format(access_name=access_name,
-                                             parent_var="{parent_var}",
-                                             var="{var}")
+        #print self._get_additional_properties()
+        access_name = self.GetProperties()['Access names'][0]
+        if check_valid_identifier(access_name):
+            # A valid identifier
+            code = self.code_self_pattern_attr.format(access_name=access_name,
+                                                      parent_var="{parent_var}",
+                                                      var="{var}")
+        else:
+            #Not valid, encode and use as app's item.
+            access_name = access_name.encode('unicode-escape', 'replace')
+            code = self.code_self_pattern_item.format(access_name=access_name,
+                                                      parent_var="{parent_var}",
+                                                      var="{var}")
         return code
 
     @property
@@ -495,6 +417,14 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         """
         code = self.code_action_pattern
         return code
+
+    @property
+    def _code_close(self):
+
+        """
+        Default _code_close.
+        """
+        return ""
 
     @property
     def code_var_pattern(self):
@@ -512,6 +442,14 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         return "{var_prefix}{id}".format(var_prefix=var_prefix,
                                          id="{id}")
 
+    def SetCodestyle(self, extended_action_id):
+
+        """
+        Switch a control codestyle regarding extended_action_id
+        """
+
+        pass
+
 
 class VirtualSWAPYObject(SWAPYObject):
     def __init__(self, parent, index):
@@ -523,17 +461,21 @@ class VirtualSWAPYObject(SWAPYObject):
         self._check_existence = self.parent._check_existence
         self.code_parents = self.get_code_parents()
 
-    code_action_pattern = "{parent_var}.{action}({index})\n"
+    code_action_pattern = "{parent_var}.{action}({index})"
 
     @property
     def _code_self(self):
+
+        """
+        Rewrite default behavior.
+        """
         return ""
 
     @property
     def _code_action(self):
         index = self.index
         if isinstance(index, unicode):
-            index = "'%s'" % self.index.encode('unicode-escape', 'replace')
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
         code = self.code_action_pattern.format(index=index,
                                                action="{action}",
                                                var="{var}",
@@ -561,10 +503,17 @@ class VirtualSWAPYObject(SWAPYObject):
 class PC_system(SWAPYObject):
     handle = 0
 
+    # code_self_pattern = "{var} = pywinauto.application.Application()\n"
+
     @property
     def _code_self(self):
-        # Prevent code generation
-        return ""
+        # code = self.code_self_pattern.format(var="{var}")
+        # return code
+        return "from pywinauto.application import Application"
+    #
+    # @property
+    # def code_var_pattern(self):
+    #     return "app{id}".format(id="{id}")
 
     def Get_subitems(self):
         '''
@@ -593,15 +542,14 @@ class PC_system(SWAPYObject):
         for w_handle in handles:
             wind = app.window_(handle=w_handle)
             if w_handle == taskbar_handle:
-                texts = ['TaskBar']
+                title = 'TaskBar'
             else:
                 texts = wind.Texts()
-            while texts.count(''):
-                texts.remove('')
-            title = ', '.join(texts)
-            if not title:
-                title = 'Window#%s' % w_handle
-            #title = title.encode('cp1251', 'replace')
+                texts = filter(bool, texts)  # filter out '' and None items
+                if not texts:
+                    title = 'Window#%s' % w_handle
+                else:
+                    title = ', '.join(texts)
             windows.append((title, self._get_swapy_object(wind)))
         windows.sort(key=lambda name: name[0].lower())
         #-----------------------
@@ -638,14 +586,65 @@ class PC_system(SWAPYObject):
 
 
 class Pwa_window(SWAPYObject):
-    code_self_pattern = "handle = pywinauto.findwindows.find_windows(title=u'{title}', class_name='{cls_name}')[0]\n" \
-                        "{var} = pwa_app.window_(handle=handle)\n"
+    code_self_pattern_attr = "{var} = app_{var}.{access_name}"
+    code_self_pattern_item = "{var} = app_{var}['{access_name}']"
+    code_self_close = "app_{var}.Kill_()"
+
+    def __init__(self, *args, **kwargs):
+        # Set default style
+        self.code_self_style = self.__code_self_connect
+        self.code_close_style = self.__code_close_connect
+        return super(Pwa_window, self).__init__(*args, **kwargs)
+
+    def __code_self_connect(self):
+        title = self.pwa_obj.WindowText().encode('unicode-escape')
+        cls_name = self.pwa_obj.Class()
+        code = "\napp_{var} = Application().Connect(title=u'{title}', " \
+               "class_name='{cls_name}')\n".format(title=title,
+                                                   cls_name=cls_name,
+                                                   var="{var}")
+        return code
+
+    def __code_self_start(self):
+        target_pid = self.pwa_obj.ProcessID()
+        cmd_line = None
+        process_modules = pywinauto.application._process_get_modules_wmi()
+        for pid, name, cmdline in process_modules:
+            if pid == target_pid:
+                cmd_line = cmdline
+                break
+
+        code = "\napp_{var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
+            .format(cmd_line=cmd_line.encode('unicode-escape'),
+                    var="{var}")
+        return code
+
+    def __code_close_connect(self):
+        return ""
+
+    def __code_close_start(self):
+        return self.code_self_close.format(var="{var}")
 
     @property
     def _code_self(self):
-        code = self.code_self_pattern.format(title=self.pwa_obj.WindowText().encode('unicode-escape', 'replace'),
-                                             cls_name=self.pwa_obj.Class(),
-                                             var="{var}")
+        code = ""
+        if not self._get_additional_properties()['Access names']:
+            raise NotImplementedError
+        else:
+            code += self.code_self_style()
+            code += super(Pwa_window, self)._code_self
+
+        return code
+
+    @property
+    def _code_close(self):
+
+        """
+        Rewrite default behavior.
+        """
+
+        code = self.code_close_style()
+
         return code
 
     def _get_additional_children(self):
@@ -658,6 +657,55 @@ class Pwa_window(SWAPYObject):
             menu_child = [('!Menu', self._get_swapy_object(menu))]
             additional_children += menu_child
         return additional_children
+
+    def _get_additional_properties(self):
+        '''
+        Get additonal useful properties, like a handle, process ID, etc.
+        Can be overridden by derived class
+        '''
+        additional_properties = {}
+        pwa_app = pywinauto.application.Application()
+        #-----Access names
+
+        access_names = [name for name in pywinauto.findbestmatch.build_unique_dict([self.pwa_obj]).keys() if name != '']
+        access_names.sort(key=len)
+        additional_properties.update({'Access names': access_names})
+        #-----
+
+        #-----pwa_type
+        additional_properties.update({'pwa_type': str(type(self.pwa_obj))})
+        #---
+
+        #-----handle
+        try:
+            additional_properties.update({'handle': str(self.pwa_obj.handle)})
+        except:
+            pass
+        #---
+        return additional_properties
+
+    def Get_extended_actions(self):
+
+        """
+        Extended actions
+        """
+
+        return [(_id, action) for _id, action in EXTENDED_ACTIONS.items()]
+
+    def SetCodestyle(self, extended_action_id):
+
+        """
+        Switch to `Start` or `Connect` code
+        """
+
+        if extended_action_id == 301:  # Start
+            self.code_self_style = self.__code_self_start
+            self.code_close_style = self.__code_close_start
+        elif extended_action_id == 302:  # Connect
+            self.code_self_style = self.__code_self_connect
+            self.code_close_style = self.__code_close_connect
+        else:
+            raise RuntimeError("Unknown menu id - %s" % extended_action_id)
 
 
 class Pwa_menu(SWAPYObject):
@@ -725,7 +773,7 @@ class Pwa_menu(SWAPYObject):
 class Pwa_menu_item(Pwa_menu):
 
     main_parent_type = Pwa_window
-    code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')\n"
+    code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')"
 
     @property
     def _code_self(self):
@@ -807,19 +855,42 @@ class Pwa_listview(SWAPYObject):
         additional_children = []
         for index in range(self.pwa_obj.ItemCount()):
             item = self.pwa_obj.GetItem(index)
-            additional_children += [(item['text'], virtual_listview_item(self, index))]
+        #for item in self.pwa_obj.Items(): #Wait for the fix https://github.com/pywinauto/pywinauto/issues/97
+            additional_children += [(item['text'], listview_item(item, self))]
         return additional_children
 
 
-class virtual_listview_item(VirtualSWAPYObject):
+class listview_item(SWAPYObject):
+
+    code_self_pattern = "{var} = {parent_var}.GetItem('{index}')"
+
+    @property
+    def _code_self(self):
+        code = self.code_self_pattern.format(index=self.pwa_obj.ItemData()['text'],
+                                             parent_var="{parent_var}",
+                                             var="{var}")
+        return code
 
     def _get_properies(self):
-        item_properties = {'Index' : self.index}
-        for index, item_props in enumerate(self.parent.pwa_obj.Items()):
-            if index == self.index:
-                item_properties.update(item_props)
-                break
+        item_properties = {'index': self.pwa_obj.item_index}
+        item_properties.update(self.pwa_obj.ItemData())
         return item_properties
+
+    def _check_visibility(self):
+        return True
+
+    def _check_actionable(self):
+        return True
+
+    def _check_existence(self):
+        return True
+
+    def Get_subitems(self):
+        return []
+
+    def Highlight_control(self):
+        pass
+        return 0
 
 
 class Pwa_tab(SWAPYObject):
@@ -838,6 +909,17 @@ class Pwa_tab(SWAPYObject):
 
 class virtual_tab_item(VirtualSWAPYObject):
 
+    @property
+    def _code_action(self):
+        index = self.parent.pwa_obj.GetTabText(self.index)
+        if isinstance(index, unicode):
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
+        code = self.code_action_pattern.format(index=index,
+                                               action="{action}",
+                                               var="{var}",
+                                               parent_var="{parent_var}")
+        return code
+
     def _get_properies(self):
         item_properties = {'Index' : self.index,
                            'Texts': self.parent.pwa_obj.GetTabText(self.index)}
@@ -853,15 +935,16 @@ class Pwa_toolbar(SWAPYObject):
         additional_children = []
         buttons_count = self.pwa_obj.ButtonCount()
         for button_index in range(buttons_count):
-          try:
-            button_text = self.pwa_obj.Button(button_index).info.text
-            button_object = self._get_swapy_object(self.pwa_obj.Button(button_index))
-          except exceptions.RuntimeError:
-            #button_text = ['Unknown button name1!'] #workaround for RuntimeError: GetButtonInfo failed for button with index 0
-            pass #ignore the button
-          else:
-            button_item = [(button_text, button_object)]
-            additional_children += button_item
+            try:
+                button = self.pwa_obj.Button(button_index)
+                button_text = button.info.text
+                button_object = self._get_swapy_object(button)
+            except exceptions.RuntimeError:
+                #button_text = ['Unknown button name1!'] #workaround for RuntimeError: GetButtonInfo failed for button with index 0
+                pass #ignore the button
+            else:
+                button_item = [(button_text, button_object)]
+                additional_children += button_item
         return additional_children
         
     def _get_children(self):
@@ -874,28 +957,20 @@ class Pwa_toolbar(SWAPYObject):
 
 class Pwa_toolbar_button(SWAPYObject):
 
-    code_action_pattern = "{parent_var}.Button({index})\n"
+    code_self_pattern = "{var} = {parent_var}.Button({index})"
 
     @property
     def _code_self(self):
-        return ""
-
-    @property
-    def _code_action(self):
-        index = self.pwa_obj.index
+        index = self.pwa_obj.info.text
         if isinstance(index, unicode):
-            index = "'%s'" % self.pwa_obj.index.encode('unicode-escape', 'replace')
+            index = "'%s'" % index.encode('unicode-escape', 'replace')
 
-        code = self.code_action_pattern.format(index=index,
-                                               action="{action}",
-                                               var="{var}",
-                                               parent_var="{parent_var}")
+        code = self.code_self_pattern.format(index=index,
+                                             action="{action}",
+                                             var="{var}",
+                                             parent_var="{parent_var}")
         return code
 
-    @property
-    def code_var_pattern(self):
-        raise Exception('Must not be used "code_var_pattern" prop for a Pwa_toolbar_button')
-    
     def _check_visibility(self):
         is_visible = False
         try:
@@ -928,15 +1003,16 @@ class Pwa_toolbar_button(SWAPYObject):
         
     def _get_properies(self):
         o = self.pwa_obj
-        props = {'IsCheckable' : o.IsCheckable(),
-                 'IsChecked' : o.IsChecked(),
+        props = {'IsCheckable': o.IsCheckable(),
+                 'IsChecked': o.IsChecked(),
                  'IsEnabled': o.IsEnabled(),
-                 'IsPressable' : o.IsPressable(),
-                 'IsPressed' : o.IsPressed(),
-                 'Rectangle' : o.Rectangle(),
-                 'State' : o.State(),
-                 'Style' : o.Style(),
-                 'index' : o.index,}
+                 'IsPressable': o.IsPressable(),
+                 'IsPressed': o.IsPressed(),
+                 'Rectangle': o.Rectangle(),
+                 'State': o.State(),
+                 'Style': o.Style(),
+                 'index': o.index,
+                 'text': o.info.text}
         return props
         
     def Highlight_control(self): 
@@ -969,7 +1045,7 @@ class Pwa_tree(SWAPYObject):
 class Pwa_tree_item(SWAPYObject):
 
     main_parent_type = Pwa_tree
-    code_self_pattern = "{var} = {main_parent_var}.GetItem({path})\n"
+    code_self_pattern = "{var} = {main_parent_var}.GetItem({path})"
 
     @property
     def _code_self(self):
