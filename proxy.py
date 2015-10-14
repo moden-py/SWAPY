@@ -18,14 +18,16 @@
 #    Suite 330,
 #    Boston, MA 02111-1307 USA
 
-import pywinauto
-import sys, os
+import exceptions
+import platform
+import os
+import sys
 import string
 import time
 import thread
-import exceptions
-import platform
 import warnings
+
+import pywinauto
 
 from code_manager import CodeGenerator, check_valid_identifier
 from const import *
