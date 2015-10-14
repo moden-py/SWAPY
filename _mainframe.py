@@ -263,7 +263,7 @@ class Frame1(wx.Frame):
             obj.Exec_action(action)
 
         #self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
-        #self.textCtrl_Editor.SetValue(code)
+        self.textCtrl_Editor.SetValue(code)
 
         
     def _init_windows_tree(self):
