@@ -38,16 +38,21 @@ install:
    # Install pywinauto from the trunk
    - "%CMD_IN_ENV% pip install -e git+https://github.com/pywinauto/pywinauto.git@master#egg=pywinauto-trunk"
 
+   # Print python modules
+   - "%CMD_IN_ENV% pip freeze"
+
 build: off  # disable automatic builds
 
-#build_script:
-#  - "%CMD_IN_ENV% pip freeze"
-#  - "%CMD_IN_ENV% powershell ./ci/build.ps1"
 
 test_script:
   # Run the project tests
   - "%CMD_IN_ENV% svn checkout https://github.com/pywinauto/pywinauto/trunk/apps ./apps"
   - "%CMD_IN_ENV% python -m unittest discover"
+
+build_script:
+   # Build UI
+  - "%CMD_IN_ENV% powershell ./ci/build.ps1"
+
 
 artifacts:
   # Archive the generated coverage report in the ci.appveyor.com build report.

@@ -140,7 +140,7 @@ class CodeGeneratorTestCases(unittest.TestCase):
 
     def testSysTabControl32Code(self):
         expected_code = \
-            "from pywinauto.application import Application\n\n" \
+            "f<bug>rom pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Connect(title=u'Common " \
             "Controls Sample', class_name='#32770')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
