@@ -46,7 +46,7 @@ build_script:
 
 test_script:
   # Run the project tests
-  - "%CMD_IN_ENV% svn checkout https://github.com/pywinauto/pywinauto/trunk/apps/MFC_samples ./apps"
+  - "%CMD_IN_ENV% svn checkout https://github.com/pywinauto/pywinauto/trunk/apps ./apps"
   - "%CMD_IN_ENV% python -m unittest discover"
 
 artifacts:
