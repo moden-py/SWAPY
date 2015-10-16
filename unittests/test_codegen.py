@@ -46,7 +46,7 @@ def get_proxy_object(pwa_window, path):
 @contextmanager
 def test_app(filename):
     mfc_samples_folder = os.path.join(os.path.dirname(__file__),
-                                      r"..\apps\MFC_samples")
+                                      u"..\\\u0439\\MFC_samples")
     if is_x64_Python():
         sample_exe = os.path.join(mfc_samples_folder,
                                   "x64",
@@ -54,7 +54,8 @@ def test_app(filename):
     else:
         sample_exe = os.path.join(mfc_samples_folder, filename)
     app = Application().start(sample_exe)
-    yield app
+    app_path = os.path.abspath(sample_exe).encode('unicode-escape')
+    yield app, app_path
     app.kill_()
 
 
@@ -85,12 +86,12 @@ class CodeGeneratorTestCases(BaseTestCase):
     def testInitAllParents(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "app_pwa_window1 = Application().Connect(title=u'Common " \
-            "Controls Sample', class_name='#32770')\n" \
+            "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
             "systreeview1 = pwa_window1.TreeView\n" \
             "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
-            "pwa_tree_item1.Expand()\n\n"
+            "pwa_tree_item1.Expand()\n\n" \
+            "app_pwa_window1.Kill_()"
 
         path = (u'Common Controls Sample',
 
@@ -99,22 +100,23 @@ class CodeGeneratorTestCases(BaseTestCase):
                 u'Birds',
                 )
 
-        with test_app("CmnCtrl1.exe"):
+        with test_app("CmnCtrl1.exe") as (app, app_path):
             proxy_app = get_proxy_object(None, path)
             code = proxy_app.Get_code('Expand')
 
+        expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
     def testReuseVariable(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "app_pwa_window1 = Application().Connect(title=u'Common " \
-            "Controls Sample', class_name='#32770')\n" \
+            "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
             "systreeview1 = pwa_window1.TreeView\n" \
             "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
             "pwa_tree_item1.Expand()\n" \
-            "pwa_tree_item1.Click()\n\n"
+            "pwa_tree_item1.Click()\n\n" \
+            "app_pwa_window1.Kill_()"
 
         path = (u'Common Controls Sample',
 
@@ -123,11 +125,12 @@ class CodeGeneratorTestCases(BaseTestCase):
                 u'Birds',
                 )
 
-        with test_app("CmnCtrl1.exe"):
+        with test_app("CmnCtrl1.exe") as (app, app_path):
             proxy_app = get_proxy_object(None, path)
             proxy_app.Get_code('Expand')  # First call
             code = proxy_app.Get_code('Click')
 
+        expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
 
@@ -136,11 +139,11 @@ class ControlsCodeTestCases(BaseTestCase):
     def testComboBoxCode(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "app_pwa_window1 = Application().Connect(title=u'Common " \
-            "Controls Sample', class_name='#32770')\n" \
+            "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
             "combobox1 = pwa_window1.ComboBox\n" \
-            "combobox1.Select('Gray')\n\n"
+            "combobox1.Select('Gray')\n\n" \
+            "app_pwa_window1.Kill_()"
 
         path = (u'Common Controls Sample',
 
@@ -149,20 +152,21 @@ class ControlsCodeTestCases(BaseTestCase):
                 u'Gray',
                 )
 
-        with test_app("CmnCtrl3.exe"):
+        with test_app("CmnCtrl3.exe") as (app, app_path):
             proxy_app = get_proxy_object(None, path)
             code = proxy_app.Get_code('Select')
 
+        expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
     def testSysListView32Code(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "{app_ident}1 = Application().Connect(title=u'RowList Sample " \
-            "Application', class_name='{class_name}')\n" \
+            "{app_ident}1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "{win_ident}1 = {app_ident}1['RowList Sample Application']\n" \
             "syslistview1 = {win_ident}1['1']\n" \
-            "syslistview1.Click()\n\n"
+            "syslistview1.Click()\n\n" \
+            "{app_ident}1.Kill_()"
 
         path = (u'RowList Sample Application',
 
@@ -175,7 +179,7 @@ class ControlsCodeTestCases(BaseTestCase):
                 u'Line',
                 )
 
-        with test_app("RowList.exe"):
+        with test_app("RowList.exe") as (app, app_path):
             window = Application().Connect(
                 title=u'RowList Sample Application')[
                 'RowList Sample Application']
@@ -188,18 +192,19 @@ class ControlsCodeTestCases(BaseTestCase):
             code = proxy_app.Get_code('Click')
 
         expected_code = expected_code.format(app_ident="app_%s" % crtl_class,
-                                             win_ident=crtl_class,
-                                             class_name=class_name)
+                                             app_path=app_path,
+                                             class_name=class_name,
+                                             win_ident=crtl_class)
         self.assertEquals(expected_code, code)
 
     def testSysTabControl32Code(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "app_pwa_window1 = Application().Connect(title=u'Common " \
-            "Controls Sample', class_name='#32770')\n" \
+            "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
             "systabcontrol1 = pwa_window1.TabControl\n" \
-            "systabcontrol1.Select('CTreeCtrl')\n\n"
+            "systabcontrol1.Select('CTreeCtrl')\n\n" \
+            "app_pwa_window1.Kill_()"
 
         path = (u'Common Controls Sample',
 
@@ -209,21 +214,22 @@ class ControlsCodeTestCases(BaseTestCase):
                 u'CTreeCtrl',
                 )
 
-        with test_app("CmnCtrl1.exe"):
+        with test_app("CmnCtrl1.exe") as (app, app_path):
             proxy_app = get_proxy_object(None, path)
             code = proxy_app.Get_code('Select')
 
+        expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
     def testToolbarWindow32Code(self):
         expected_code = \
             "from pywinauto.application import Application\n\n" \
-            "app_pwa_window1 = Application().Connect(title=u'Common " \
-            "Controls Sample', class_name='#32770')\n" \
+            "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
             "toolbarwindow1 = pwa_window1.Toolbar2\n" \
             "pwa_toolbar_button1 = toolbarwindow1.Button('Line')\n" \
-            "pwa_toolbar_button1.Click()\n\n"
+            "pwa_toolbar_button1.Click()\n\n" \
+            "app_pwa_window1.Kill_()"
 
         path = (u'Common Controls Sample',
 
@@ -233,11 +239,12 @@ class ControlsCodeTestCases(BaseTestCase):
                 u'Line',
                 )
 
-        with test_app("CmnCtrl1.exe") as app:
+        with test_app("CmnCtrl1.exe") as (app, app_path):
             app.Dialog.TabControl.Select('CToolBarCtrl')  # open needed tab
             proxy_app = get_proxy_object(None, path)
             code = proxy_app.Get_code('Click')
 
+        expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
 
