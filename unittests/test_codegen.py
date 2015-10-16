@@ -58,7 +58,7 @@ def test_app(filename):
     app.kill_()
 
 
-class CodeGeneratorTestCases(unittest.TestCase):
+class BaseTestCase(unittest.TestCase):
 
     def setUp(self):
 
@@ -78,6 +78,60 @@ class CodeGeneratorTestCases(unittest.TestCase):
         code_manager.CodeManager().clear()  # Clear single tone CodeManager
         reload(code_manager)  # Reset class's counters
         reload(proxy)  # Reset class's counters
+
+
+class CodeGeneratorTestCases(BaseTestCase):
+
+    def testInitAllParents(self):
+        expected_code = \
+            "from pywinauto.application import Application\n\n" \
+            "app_pwa_window1 = Application().Connect(title=u'Common " \
+            "Controls Sample', class_name='#32770')\n" \
+            "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "systreeview1 = pwa_window1.TreeView\n" \
+            "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
+            "pwa_tree_item1.Expand()\n\n"
+
+        path = (u'Common Controls Sample',
+
+                u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
+
+                u'Birds',
+                )
+
+        with test_app("CmnCtrl1.exe"):
+            proxy_app = get_proxy_object(None, path)
+            code = proxy_app.Get_code('Expand')
+
+        self.assertEquals(expected_code, code)
+
+    def testReuseVariable(self):
+        expected_code = \
+            "from pywinauto.application import Application\n\n" \
+            "app_pwa_window1 = Application().Connect(title=u'Common " \
+            "Controls Sample', class_name='#32770')\n" \
+            "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "systreeview1 = pwa_window1.TreeView\n" \
+            "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
+            "pwa_tree_item1.Expand()\n" \
+            "pwa_tree_item1.Click()\n\n"
+
+        path = (u'Common Controls Sample',
+
+                u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
+
+                u'Birds',
+                )
+
+        with test_app("CmnCtrl1.exe"):
+            proxy_app = get_proxy_object(None, path)
+            proxy_app.Get_code('Expand')  # First call
+            code = proxy_app.Get_code('Click')
+
+        self.assertEquals(expected_code, code)
+
+
+class ControlsCodeTestCases(BaseTestCase):
 
     def testComboBoxCode(self):
         expected_code = \
@@ -185,3 +239,5 @@ class CodeGeneratorTestCases(unittest.TestCase):
             code = proxy_app.Get_code('Click')
 
         self.assertEquals(expected_code, code)
+
+
