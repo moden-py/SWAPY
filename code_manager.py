@@ -43,15 +43,8 @@ class CodeSnippet(object):
     `indent` means `action_code` and `close_code` should be under the indent.
     """
 
-    def __init__(self, *args, **kwargs):
-        self.update(*args, **kwargs)
-
-    def update(self, init_code='', action_code='', close_code='',
-               indent=False):
-
-        """
-        Update code
-        """
+    def __init__(self, init_code='', action_code='', close_code='',
+                 indent=False):
 
         if not init_code and not action_code and not close_code:
             raise SyntaxError("At least one of init_code, "
@@ -60,6 +53,24 @@ class CodeSnippet(object):
         self.action_code = action_code
         self.close_code = close_code
         self.indent = indent
+
+    def update(self, init_code=None, action_code=None, close_code=None,
+               indent=None):
+
+        """
+        Update code
+        """
+        if init_code:
+            self.init_code = init_code
+
+        if action_code:
+            self.action_code = action_code
+
+        if close_code:
+            self.close_code = close_code
+
+        if indent:
+            self.indent = indent
 
     def __repr__(self):
         lines = []
@@ -276,14 +287,23 @@ class CodeGenerator(object):
                     p.code_snippet = parent_snippet
                     self.code_manager.add(parent_snippet)
 
-            self_code_self = self.get_code_self()  # self access code
-            close_code = self.get_code_close()
-            if self_code_self or close_code:
-                self.code_manager.add(CodeSnippet(init_code=self_code_self,
-                                                  close_code=close_code))
-        if action:
-            self_code_action = self.get_code_action(action)  # self action code
-            self.code_manager.add(CodeSnippet(action_code=self_code_action))
+            own_code_self = self.get_code_self()
+            own_close_code = self.get_code_close()
+            # get_code_action call should be after the get_code_self call
+            own_code_action = self.get_code_action(action) if action else ''
+
+            if own_code_self or own_close_code or own_code_action:
+                own_snippet = CodeSnippet(init_code=own_code_self,
+                                          action_code=own_code_action,
+                                          close_code=own_close_code)
+                self.code_snippet = own_snippet
+                self.code_manager.add(own_snippet)
+        else:
+            # Already inited (all parents too), may use get_code_action
+            own_code_action = self.get_code_action(action) if action else ''
+            if own_code_action:
+                new_action_snippet = CodeSnippet(action_code=own_code_action)
+                self.code_manager.add(new_action_snippet)
 
         return self.code_manager.get_full_code()
 

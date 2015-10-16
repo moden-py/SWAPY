@@ -594,8 +594,8 @@ class Pwa_window(SWAPYObject):
 
     def __init__(self, *args, **kwargs):
         # Set default style
-        self.code_self_style = self.__code_self_connect
-        self.code_close_style = self.__code_close_connect
+        self.code_self_style = self.__code_self_start
+        self.code_close_style = self.__code_close_start
         return super(Pwa_window, self).__init__(*args, **kwargs)
 
     def __code_self_connect(self):
@@ -611,14 +611,13 @@ class Pwa_window(SWAPYObject):
         target_pid = self.pwa_obj.ProcessID()
         cmd_line = None
         process_modules = pywinauto.application._process_get_modules_wmi()
-        for pid, name, cmdline in process_modules:
+        for pid, name, process_cmdline in process_modules:
             if pid == target_pid:
-                cmd_line = cmdline
+                cmd_line = os.path.abspath(process_cmdline)
+                cmd_line = cmd_line.encode('unicode-escape')
                 break
-
         code = "\napp_{var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
-            .format(cmd_line=cmd_line.encode('unicode-escape'),
-                    var="{var}")
+            .format(cmd_line=cmd_line, var="{var}")
         return code
 
     def __code_close_connect(self):
