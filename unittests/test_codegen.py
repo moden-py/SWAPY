@@ -57,7 +57,7 @@ def test_app(filename):
     else:
         sample_exe = os.path.join(mfc_samples_folder, filename)
     app = Application().start(sample_exe)
-    app_path = os.path.abspath(sample_exe).encode('unicode-escape')
+    app_path = os.path.normpath(sample_exe).encode('unicode-escape')
     yield app, app_path
     app.kill_()
 

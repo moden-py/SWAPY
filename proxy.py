@@ -613,7 +613,7 @@ class Pwa_window(SWAPYObject):
         process_modules = pywinauto.application._process_get_modules_wmi()
         for pid, name, process_cmdline in process_modules:
             if pid == target_pid:
-                cmd_line = os.path.abspath(process_cmdline)
+                cmd_line = os.path.normpath(process_cmdline)
                 cmd_line = cmd_line.encode('unicode-escape')
                 break
         code = "\napp_{var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
