@@ -1054,7 +1054,7 @@ class Pwa_tree_item(SWAPYObject):
         path = self.path
         for i in range(len(path)):
             if isinstance(path[i], unicode):
-                path[i] = "'%s'" % path[i].encode('unicode-escape', 'replace')
+                path[i] = '%s' % path[i].encode('unicode-escape', 'replace')
 
         code = self.code_self_pattern.format(path=path,
                                              var="{var}",
