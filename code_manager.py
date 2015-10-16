@@ -43,8 +43,16 @@ class CodeSnippet(object):
     `indent` means `action_code` and `close_code` should be under the indent.
     """
 
-    def __init__(self, init_code='', action_code='', close_code='',
-                 indent=False):
+    def __init__(self, *args, **kwargs):
+        self.update(*args, **kwargs)
+
+    def update(self, init_code='', action_code='', close_code='',
+               indent=False):
+
+        """
+        Update code
+        """
+
         if not init_code and not action_code and not close_code:
             raise SyntaxError("At least one of init_code, "
                               "action_code, close_code should be passed.")
@@ -138,8 +146,11 @@ class CodeGenerator(object):
     code_manager = CodeManager()
     code_var_name = None  # Default value, will be rewrote with composed
     # variable name as an instance attribute.
+
     code_var_counters = {}  # Default value, will be rewrote as instance's
     # class attribute by get_code_id(cls)
+
+    code_snippet = None  # Saves own code snippet to make possible change it.
 
     @classmethod
     def get_code_id(cls, var_prefix='default'):
@@ -260,11 +271,10 @@ class CodeGenerator(object):
 
             for p in code_parents:
                 if not p.code_var_name:
-                    parent_init_code = p.get_code_self()
-
-                    self.code_manager.add(
-                        CodeSnippet(init_code=parent_init_code,
-                                    close_code=p.get_code_close()))
+                    parent_snippet = CodeSnippet(init_code=p.get_code_self(),
+                                                 close_code=p.get_code_close())
+                    p.code_snippet = parent_snippet
+                    self.code_manager.add(parent_snippet)
 
             self_code_self = self.get_code_self()  # self access code
             close_code = self.get_code_close()
@@ -290,4 +300,10 @@ if __name__ == '__main__':
     print c1
     [cm.add(i) for i in [c1, c2, c3, c4, c5]]
 
+    print id(c2)
+    print cm
+
+    c2.update('button1 = the_change', 'the_change.Click()',
+                     'del the_change')
+    print id(c2)
     print cm
