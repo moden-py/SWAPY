@@ -29,6 +29,9 @@ from pywinauto.application import Application
 from pywinauto.sysinfo import is_x64_Python
 
 
+SAMPLE_APPS_PATH = u"..\\apps\\MFC_samples"
+
+
 def get_proxy_object(pwa_window, path):
     if not pwa_window:
         proxy_object = proxy.PC_system(None)
@@ -46,7 +49,7 @@ def get_proxy_object(pwa_window, path):
 @contextmanager
 def test_app(filename):
     mfc_samples_folder = os.path.join(os.path.dirname(__file__),
-                                      u"..\\\u0439\\MFC_samples")
+                                      SAMPLE_APPS_PATH)
     if is_x64_Python():
         sample_exe = os.path.join(mfc_samples_folder,
                                   "x64",
