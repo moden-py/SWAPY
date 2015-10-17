@@ -57,9 +57,8 @@ def test_app(filename):
     else:
         sample_exe = os.path.join(mfc_samples_folder, filename)
 
-    app = Application().start(sample_exe)
+    app = Application().start(sample_exe, timeout=3)
     app_path = os.path.normpath(sample_exe).encode('unicode-escape')
-    app.top_window_().Wait('ready')
     try:
         yield app, app_path
     except:
