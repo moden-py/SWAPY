@@ -98,6 +98,7 @@ class CodeGeneratorTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "systreeview1 = pwa_window1.TreeView\n" \
             "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
             "pwa_tree_item1.Expand()\n\n" \
@@ -120,6 +121,7 @@ class CodeGeneratorTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "systreeview1 = pwa_window1.TreeView\n" \
             "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
             "pwa_tree_item1.Expand()\n" \
@@ -154,6 +156,7 @@ class CodeGeneratorTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "systreeview1 = pwa_window1.TreeView\n" \
             "pwa_tree_item1 = systreeview1.GetItem(['Birds'])\n" \
             "pwa_tree_item1.Expand()\n\n" \
@@ -198,6 +201,7 @@ class ControlsCodeTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "combobox1 = pwa_window1.ComboBox\n" \
             "combobox1.Select('Gray')\n\n" \
             "app_pwa_window1.Kill_()"
@@ -219,6 +223,7 @@ class ControlsCodeTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "{app_ident}1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "{win_ident}1 = {app_ident}1['RowList Sample Application']\n" \
+            "{win_ident}1.Wait('ready')\n" \
             "syslistview1 = {win_ident}1['1']\n" \
             "syslistview1.Click()\n\n" \
             "{app_ident}1.Kill_()"
@@ -257,6 +262,7 @@ class ControlsCodeTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "systabcontrol1 = pwa_window1.TabControl\n" \
             "systabcontrol1.Select('CTreeCtrl')\n\n" \
             "app_pwa_window1.Kill_()"
@@ -281,6 +287,7 @@ class ControlsCodeTestCases(BaseTestCase):
             "from pywinauto.application import Application\n\n" \
             "app_pwa_window1 = Application().Start(cmd_line=u'{app_path}')\n" \
             "pwa_window1 = app_pwa_window1.Dialog\n" \
+            "pwa_window1.Wait('ready')\n" \
             "toolbarwindow1 = pwa_window1.Toolbar2\n" \
             "pwa_toolbar_button1 = toolbarwindow1.Button('Line')\n" \
             "pwa_toolbar_button1.Click()\n\n" \
