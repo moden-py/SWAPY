@@ -58,18 +58,22 @@ class CodeSnippet(object):
                indent=None):
 
         """
-        Update code
+        Update code.
+        Updates only passed the args.
+        To clear a code use emty line. For instance
+        .update(init_code='new init code',
+                action_code='')  # Erase old action_code
         """
-        if init_code:
+        if init_code is not None:
             self.init_code = init_code
 
-        if action_code:
+        if action_code is not None:
             self.action_code = action_code
 
-        if close_code:
+        if close_code is not None:
             self.close_code = close_code
 
-        if indent:
+        if indent is not None:
             self.indent = indent
 
     def __repr__(self):
@@ -196,8 +200,9 @@ class CodeGenerator(object):
 
         pattern = self._code_self
         if pattern:
-            self.code_var_name = self.code_var_pattern.format(
-                id=self.get_code_id(self.code_var_pattern))
+            if self.code_var_name is None:
+                self.code_var_name = self.code_var_pattern.format(
+                    id=self.get_code_id(self.code_var_pattern))
 
             format_kwargs = {'var': self.code_var_name}
             try:
