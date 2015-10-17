@@ -51,7 +51,7 @@ before_build:
 build_script:
   # install wxPython
   - "%CMD_IN_ENV% powershell ./ci/install.ps1"
-  # Print python modules
+  # Print python modules again
   - "%CMD_IN_ENV% pip freeze"
   # Build UI
   - "%CMD_IN_ENV% powershell ./ci/build.ps1"
