@@ -59,7 +59,7 @@ def test_app(filename):
 
     app = Application().start(sample_exe)
     app_path = os.path.normpath(sample_exe).encode('unicode-escape')
-
+    app.top_window_().Wait('ready')
     try:
         yield app, app_path
     except:
