@@ -253,7 +253,8 @@ class ControlsCodeTestCases(BaseTestCase):
             "{win_ident}1 = {app_ident}1['RowList Sample Application']\n" \
             "{win_ident}1.Wait('ready')\n" \
             "syslistview1 = {win_ident}1['1']\n" \
-            "syslistview1.Click()\n\n" \
+            "listview_item1 = syslistview1.GetItem('Gray')\n" \
+            "listview_item1.Click()\n\n" \
             "{app_ident}1.Kill_()"
 
         path = (u'RowList Sample Application',
@@ -264,7 +265,7 @@ class ControlsCodeTestCases(BaseTestCase):
                 u'255, 120, 240, 120, Cool, Blue, 0, 0, 255, 160, 240, 120, '
                 u'Cool, Gray, 192, 192, 192, 160, 0, 181, Neutral',
 
-                u'Line',
+                u'Gray',
                 )
 
         with test_app("RowList.exe") as (app, app_path):
