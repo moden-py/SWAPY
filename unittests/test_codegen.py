@@ -42,11 +42,13 @@ def get_proxy_object(pwa_window, path):
     for target_sub in path:
         subitems = proxy_object.Get_subitems()
         if not subitems:
-            raise RuntimeError("Invalid path, '%s' not found" % target_sub)
+            raise RuntimeError("'%s' cannot be found" % target_sub)
         for name, pwa_object in subitems:
             if target_sub == name:
                 proxy_object = pwa_object
                 break
+        else:
+            raise RuntimeError("Invalid path, '%s' not found" % target_sub)
 
     return proxy_object
 
