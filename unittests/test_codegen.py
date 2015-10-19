@@ -269,9 +269,8 @@ class ControlsCodeTestCases(BaseTestCase):
                 )
 
         with test_app("RowList.exe") as (app, app_path):
-            window = Application().Connect(
-                title=u'RowList Sample Application')[
-                'RowList Sample Application']
+
+            window = app.top_window_()
 
             class_name = window.GetProperties()['Class']
             crtl_class = filter(lambda c: c in string.ascii_letters,
