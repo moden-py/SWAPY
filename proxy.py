@@ -246,6 +246,8 @@ class PwaWrapper(object):
             return 'menu_item'
         elif type(obj) == pywinauto.controls.win32_controls.ComboBoxWrapper:
             return 'combobox'
+        elif type(obj) == pywinauto.controls.win32_controls.ListBoxWrapper:
+            return 'listbox'
         elif type(obj) == pywinauto.controls.common_controls.ListViewWrapper:
             return 'listview'
         elif type(obj) == pywinauto.controls.common_controls.TabControlWrapper:
@@ -272,6 +274,8 @@ class PwaWrapper(object):
             return Pwa_menu_item(pwa_obj, self)
         if pwa_type == 'combobox':
             return Pwa_combobox(pwa_obj, self)
+        if pwa_type == 'listbox':
+            return Pwa_listbox(pwa_obj, self)
         if pwa_type == 'listview':
             return Pwa_listview(pwa_obj, self)
         if pwa_type == 'tab':
@@ -861,6 +865,38 @@ class Pwa_combobox(SWAPYObject):
 
 
 class virtual_combobox_item(VirtualSWAPYObject):
+
+    def _get_properies(self):
+        index = None
+        text = self.index
+        for i, name in enumerate(self.parent.pwa_obj.ItemTexts()):
+            if name == text:
+                index = i
+                break
+        return {'Index': index, 'Text': text}
+
+
+class Pwa_listbox(SWAPYObject):
+
+    def _get_additional_children(self):
+
+        """
+        Add ListBox items as children
+        """
+
+        additional_children = []
+        for i, text in enumerate(self.pwa_obj.ItemTexts()):
+            if not text:
+                text = "option #%s" % i
+                additional_children.append((text,
+                                            virtual_listbox_item(self, i)))
+            else:
+                additional_children.append((text,
+                                            virtual_listbox_item(self, text)))
+        return additional_children
+
+
+class virtual_listbox_item(VirtualSWAPYObject):
 
     def _get_properies(self):
         index = None
