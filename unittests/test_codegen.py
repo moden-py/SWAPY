@@ -338,6 +338,7 @@ class ControlsCodeTestCases(BaseTestCase):
                                 class_name).lower()
 
             proxy_obj = get_proxy_object(None, path)
+            self.assertEquals(len(proxy_obj.pwa_obj.listview_ctrl.Items()), 56)
             code = proxy_obj.Get_code('Click')
 
         expected_code = expected_code.format(app_ident="app_%s" % crtl_class,
