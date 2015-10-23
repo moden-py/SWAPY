@@ -380,6 +380,7 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     code_self_pattern_item = "{var} = {parent_var}['{access_name}']"
     code_action_pattern = "{var}.{action}()"
     main_parent_type = None
+    short_name = 'control'
 
     def __init__(self, *args, **kwargs):
         super(SWAPYObject, self).__init__(*args, **kwargs)
@@ -446,17 +447,18 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     def code_var_pattern(self):
 
         """
-        Compose variable prefix, based on the control Class or SWAPY wrapper class name.
+        Compose variable prefix, based on the control Class or
+        SWAPY wrapper class name.
         """
 
-        var_prefix = self.__class__.__name__.lower()
+        var_prefix = self.short_name
         if 'Class' in self.GetProperties():
-            crtl_class = filter(lambda c: c in string.ascii_letters, self.GetProperties()['Class']).lower()
+            crtl_class = filter(lambda c: c in string.ascii_letters,
+                                self.GetProperties()['Class']).lower()
             if crtl_class:
                 var_prefix = crtl_class
 
-        return "{var_prefix}{id}".format(var_prefix=var_prefix,
-                                         id="{id}")
+        return "{var_prefix}{id}".format(var_prefix=var_prefix, id="{id}")
 
     def SetCodestyle(self, extended_action_id):
 
@@ -605,6 +607,7 @@ class Pwa_window(SWAPYObject):
     code_self_pattern_attr = "{var} = app_{var}.{access_name}"
     code_self_pattern_item = "{var} = app_{var}['{access_name}']"
     code_self_close = "app_{var}.Kill_()"
+    short_name = 'window'
 
     def __init__(self, *args, **kwargs):
         # Set default style
@@ -734,6 +737,8 @@ class Pwa_window(SWAPYObject):
 
 class Pwa_menu(SWAPYObject):
 
+    short_name = 'menu'
+
     def _check_visibility(self):
         is_visible = False
         try:
@@ -796,6 +801,8 @@ class Pwa_menu(SWAPYObject):
 
 class Pwa_menu_item(Pwa_menu):
 
+    short_name = 'menu_item'
+
     main_parent_type = Pwa_window
     code_self_pattern = "{var} = {main_parent_var}.MenuItem(u'{menu_path}')"
 
@@ -848,6 +855,8 @@ class Pwa_menu_item(Pwa_menu):
 
 class Pwa_combobox(SWAPYObject):
 
+    short_name = 'combobox'
+
     def _get_additional_children(self):
         '''
         Add ComboBox items as children
@@ -877,6 +886,8 @@ class virtual_combobox_item(VirtualSWAPYObject):
 
 
 class Pwa_listbox(SWAPYObject):
+
+    short_name = 'listbox'
 
     def _get_additional_children(self):
 
@@ -909,6 +920,9 @@ class virtual_listbox_item(VirtualSWAPYObject):
 
 
 class Pwa_listview(SWAPYObject):
+
+    short_name = 'listview'
+
     def _get_additional_children(self):
         '''
         Add SysListView32 items as children
@@ -928,6 +942,7 @@ class listview_item(SWAPYObject):
 
     code_self_patt_text = "{var} = {parent_var}.GetItem('{text}')"
     code_self_patt_index = "{var} = {parent_var}.GetItem({index}, {col_index})"
+    short_name = 'listview_item'
 
     @property
     def _code_self(self):
@@ -969,6 +984,9 @@ class listview_item(SWAPYObject):
 
 
 class Pwa_tab(SWAPYObject):
+
+    short_name = 'tab'
+
     def _get_additional_children(self):
 
         """
@@ -1005,6 +1023,8 @@ class virtual_tab_item(VirtualSWAPYObject):
 
 class Pwa_toolbar(SWAPYObject):
 
+    short_name = 'toolbar'
+
     def _get_additional_children(self):
         '''
         Add button objects as children
@@ -1037,6 +1057,7 @@ class Pwa_toolbar(SWAPYObject):
 class Pwa_toolbar_button(SWAPYObject):
 
     code_self_pattern = "{var} = {parent_var}.Button({index})"
+    short_name = 'toolbar_button'
 
     @property
     def _code_self(self):
@@ -1105,6 +1126,8 @@ class Pwa_toolbar_button(SWAPYObject):
         
 class Pwa_tree(SWAPYObject):
 
+    short_name = 'tree'
+
     def _get_additional_children(self):
         '''
         Add roots object as children
@@ -1129,6 +1152,7 @@ class Pwa_tree_item(SWAPYObject):
 
     main_parent_type = Pwa_tree
     code_self_pattern = "{var} = {main_parent_var}.GetItem({path})"
+    short_name = 'tree_item'
 
     @property
     def _code_self(self):
