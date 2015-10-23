@@ -158,6 +158,7 @@ class CodeGenerator(object):
     Code generation behavior. Expect be used as one of base classes of the 
     SWAPYObject's wrapper.
     """
+
     code_manager = CodeManager()
     code_var_name = None  # Default value, will be rewrote with composed
     # variable name as an instance attribute.
@@ -182,9 +183,10 @@ class CodeGenerator(object):
 
         if var_prefix not in cls.code_var_counters:
             cls.code_var_counters[var_prefix] = 1
+            return ''  # "app=..." instead of "app1=..."
         else:
             cls.code_var_counters[var_prefix] += 1
-        return cls.code_var_counters[var_prefix]
+            return cls.code_var_counters[var_prefix]
 
     def get_code_self(self):
 
