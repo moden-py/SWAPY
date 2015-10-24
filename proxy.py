@@ -267,7 +267,8 @@ class PwaWrapper(object):
         pwa_type = self._get_pywinobj_type(pwa_obj)
         #print pwa_type
         if pwa_type == 'window':
-            return Pwa_window(pwa_obj, self)
+            process = Process(self)
+            return Pwa_window(pwa_obj, process)
         if pwa_type == 'menu':
             return Pwa_menu(pwa_obj, self)
         if pwa_type == 'menu_item':
@@ -520,6 +521,7 @@ class VirtualSWAPYObject(SWAPYObject):
     
 class PC_system(SWAPYObject):
     handle = 0
+    short_name = 'pc'  # hope it never be used in the code generator
 
     # code_self_pattern = "{var} = pywinauto.application.Application()\n"
 
@@ -603,10 +605,36 @@ class PC_system(SWAPYObject):
         return True
 
 
+class Process(CodeGenerator):
+
+    """
+    Virtual parent for window objects.
+    Never is shown in the object browser. Used to hold 'app' counter
+    independent of 'window' counters.
+    """
+
+    def __init__(self, parent):
+        self.parent = parent
+
+    @property
+    def _code_self(self):
+        return ""
+
+    @property
+    def _code_action(self):
+        return ""
+
+    @property
+    def _code_close(self):
+        return ""
+
+    @property
+    def code_var_pattern(self):
+        return "{var_prefix}{id}".format(var_prefix='app', id="{id}")
+
+
 class Pwa_window(SWAPYObject):
-    code_self_pattern_attr = "{var} = app_{var}.{access_name}"
-    code_self_pattern_item = "{var} = app_{var}['{access_name}']"
-    code_self_close = "app_{var}.Kill_()"
+    code_self_close = "{parent_var}.Kill_()"
     short_name = 'window'
 
     def __init__(self, *args, **kwargs):
@@ -618,10 +646,10 @@ class Pwa_window(SWAPYObject):
     def __code_self_connect(self):
         title = self.pwa_obj.WindowText().encode('unicode-escape')
         cls_name = self.pwa_obj.Class()
-        code = "\napp_{var} = Application().Connect(title=u'{title}', " \
+        code = "\n{parent_var} = Application().Connect(title=u'{title}', " \
                "class_name='{cls_name}')\n".format(title=title,
                                                    cls_name=cls_name,
-                                                   var="{var}")
+                                                   parent_var="{parent_var}")
         return code
 
     def __code_self_start(self):
@@ -633,15 +661,15 @@ class Pwa_window(SWAPYObject):
                 cmd_line = os.path.normpath(process_cmdline)
                 cmd_line = cmd_line.encode('unicode-escape')
                 break
-        code = "\napp_{var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
-            .format(cmd_line=cmd_line, var="{var}")
+        code = "\n{parent_var} = Application().Start(cmd_line=u'{cmd_line}')\n"\
+            .format(cmd_line=cmd_line, parent_var="{parent_var}")
         return code
 
     def __code_close_connect(self):
         return ""
 
     def __code_close_start(self):
-        return self.code_self_close.format(var="{var}")
+        return self.code_self_close.format(parent_var="{parent_var}")
 
     @property
     def _code_self(self):
