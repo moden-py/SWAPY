@@ -200,12 +200,12 @@ class CodeGenerator(object):
         E. g.: `"{var} = {parent_var}['access_name']\n"`.
         """
 
-        if self.code_var_name is None:
-            self.code_var_name = self.code_var_pattern.format(
-                id=self.get_code_id(self.code_var_pattern))
-
         pattern = self._code_self
         if pattern:
+            if self.code_var_name is None:
+                self.code_var_name = self.code_var_pattern.format(
+                    id=self.get_code_id(self.code_var_pattern))
+
             format_kwargs = {'var': self.code_var_name}
             try:
                 main_parent = self.code_parents[0]

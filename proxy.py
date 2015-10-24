@@ -615,6 +615,7 @@ class Process(CodeGenerator):
 
     def __init__(self, parent):
         self.parent = parent
+        self.__var_name = None
 
     @property
     def _code_self(self):
@@ -631,6 +632,13 @@ class Process(CodeGenerator):
     @property
     def code_var_pattern(self):
         return "{var_prefix}{id}".format(var_prefix='app', id="{id}")
+
+    @property
+    def code_var_name(self):
+        if self.__var_name is None:
+            self.__var_name = self.code_var_pattern.format(
+                id=self.get_code_id(self.code_var_pattern))
+        return self.__var_name
 
 
 class Pwa_window(SWAPYObject):
