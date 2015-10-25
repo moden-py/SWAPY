@@ -76,14 +76,16 @@ class Frame1(wx.Frame):
               name='treeCtrl_ObjectsBrowser', parent=self, style=wx.TR_HAS_BUTTONS)
               
         self.treeCtrl_ObjectsBrowser.Bind(wx.EVT_TREE_SEL_CHANGED,
-              self.OnTreeCtrl1TreeSelChanged, id=wxID_FRAME1TREECTRL_OBJECTSBROWSER)
+              self.ObjectsBrowserSelChanged, id=wxID_FRAME1TREECTRL_OBJECTSBROWSER)
               
-        self.treeCtrl_ObjectsBrowser.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.ObjectsBrowserRight_Click)
+        self.treeCtrl_ObjectsBrowser.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.ObjectsBrowserRightClick)
         #----------
         
         #-----Editor-----
         self.textCtrl_Editor = wx.TextCtrl(id=wxID_FRAME1TEXTCTRL_EDITOR,
               name='textCtrl_Editor', parent=self, style=wx.TE_MULTILINE | wx.TE_READONLY, value='')
+
+        self.textCtrl_Editor.Bind(wx.EVT_CONTEXT_MENU, self.EditorContextMenu)
         
         self.textCtrl_Editor.SetInitialSize((300,250))
         #----------
@@ -99,7 +101,7 @@ class Frame1(wx.Frame):
               heading='Value', width=-1)
               
         self.listCtrl_Properties.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK,
-              self.OnlistCtrl_PropertiesListItemRightClick, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
+              self.EditorRightClick, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
               
         #self.listCtrl_Properties.Bind(wx.EVT_LEFT_DCLICK, self.Refresh, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
         #----------
@@ -133,7 +135,7 @@ class Frame1(wx.Frame):
         self.prop_updater = prop_viewer_updater(self.listCtrl_Properties)
         self.tree_updater = tree_updater(self.treeCtrl_ObjectsBrowser)
         
-    def OnTreeCtrl1TreeSelChanged(self, event):
+    def ObjectsBrowserSelChanged(self, event):
         tree_item = event.GetItem()
         obj = self.treeCtrl_ObjectsBrowser.GetItemData(tree_item).GetData()
         if not obj._check_existence():
@@ -144,7 +146,7 @@ class Frame1(wx.Frame):
         self.tree_updater.tree_update(tree_item, obj)
         obj.Highlight_control()
                     
-    def ObjectsBrowserRight_Click(self, event):
+    def ObjectsBrowserRightClick(self, event):
         menu = wx.Menu()
         #tree_item = self.treeCtrl_ObjectsBrowser.GetSelection()
         tree_item = event.GetItem()
@@ -179,7 +181,7 @@ class Frame1(wx.Frame):
             self.prop_updater.props_update(obj)
             self.tree_updater.tree_update(tree_item, obj)
     
-    def OnlistCtrl_PropertiesListItemRightClick(self, event):
+    def EditorRightClick(self, event):
         self.GLOB_prop_item_index = event.GetIndex()
         menu = wx.Menu()
         menu.Append(201, 'Copy all')
@@ -188,7 +190,18 @@ class Frame1(wx.Frame):
         menu.Append(203, 'Copy value')
         menu.Append(204, 'Copy unicode value')
         self.PopupMenu(menu)     
-        menu.Destroy() 
+        menu.Destroy()
+
+    def EditorContextMenu(self, event):
+        #self.GLOB_prop_item_index = event.GetIndex()
+        menu = wx.Menu()
+        menu.Append(201, 'Copy all')
+        menu.AppendSeparator()
+        menu.Append(202, 'Copy property')
+        menu.Append(203, 'Copy value')
+        menu.Append(204, 'Copy unicode value')
+        self.PopupMenu(menu)
+        menu.Destroy()
 
     def menu_action(self, event):
         id = event.Id
