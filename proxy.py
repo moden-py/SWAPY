@@ -449,7 +449,7 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
         """
         Compose variable prefix, based on the control Class or
-        SWAPY wrapper class name.
+        shortname of the SWAPY wrapper class.
         """
 
         var_prefix = self.short_name
@@ -609,7 +609,7 @@ class Process(CodeGenerator):
 
     """
     Virtual parent for window objects.
-    Never is shown in the object browser. Used to hold 'app' counter
+    It will never be shown in the object browser. Used to hold 'app' counter
     independent of 'window' counters.
     """
 
