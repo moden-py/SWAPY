@@ -138,7 +138,9 @@ class CodeManager(object):
 
     def clear_last(self):
         if self.snippets:
-            return self.snippets.pop()
+            last_snippet = self.snippets.pop()
+            if last_snippet.types & CodeSnippet.INIT_SNIPPET:
+                last_snippet.owner.release_variable()
 
     def get_full_code(self):
 
@@ -198,8 +200,6 @@ class CodeGenerator(object):
     code_var_counters = {}  # Default value, will be rewrote as instance's
     # class attribute by get_code_id(cls)
 
-    code_snippet = None  # Saves own code snippet to make possible change it.
-
     @classmethod
     def get_code_id(cls, var_prefix='default'):
 
@@ -213,12 +213,23 @@ class CodeGenerator(object):
         class(e.g Pwa_window) instances.
         """
 
-        if var_prefix not in cls.code_var_counters:
+        if var_prefix not in cls.code_var_counters or \
+                cls.code_var_counters[var_prefix] == 0:
             cls.code_var_counters[var_prefix] = 1
             return ''  # "app=..." instead of "app1=..."
+
         else:
             cls.code_var_counters[var_prefix] += 1
             return cls.code_var_counters[var_prefix]
+
+    @classmethod
+    def decrement_code_id(cls, var_prefix='default'):
+
+        """
+        Decrement code id.
+        """
+
+        cls.code_var_counters[var_prefix] -= 1
 
     def get_code_self(self):
 
@@ -327,7 +338,6 @@ class CodeGenerator(object):
                         parent_snippet = CodeSnippet(p,
                                                      init_code=p_code_self,
                                                      close_code=p_close_code)
-                        p.code_snippet = parent_snippet
                         self.code_manager.add(parent_snippet)
 
             own_code_self = self.get_code_self()
@@ -340,7 +350,6 @@ class CodeGenerator(object):
                                           init_code=own_code_self,
                                           action_code=own_code_action,
                                           close_code=own_close_code)
-                self.code_snippet = own_snippet
                 self.code_manager.add(own_snippet)
         else:
             # Already inited (all parents too), may use get_code_action
@@ -360,6 +369,11 @@ class CodeGenerator(object):
             if own_code_self or own_close_code:
                 init_code_snippet.update(init_code=own_code_self,
                                          close_code=own_close_code)
+
+    def release_variable(self):
+        if self.code_var_name:
+            self.code_var_name = None
+            self.decrement_code_id(self.code_var_pattern)
 
 
 if __name__ == '__main__':
