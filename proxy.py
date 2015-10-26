@@ -765,12 +765,14 @@ class Pwa_window(SWAPYObject):
         else:
             raise RuntimeError("Unknown menu id - %s" % extended_action_id)
 
-        if self.code_snippet is not None:
-            # Refresh self code after the changing of the code style
-            own_code_self = self.get_code_self()
-            own_close_code = self.get_code_close()
-            self.code_snippet.update(init_code=own_code_self,
-                                     close_code=own_close_code)
+        # if self.code_snippet is not None:
+        #     # Refresh self code after the changing of the code style
+        #     own_code_self = self.get_code_self()
+        #     own_close_code = self.get_code_close()
+        #     self.code_snippet.update(init_code=own_code_self,
+        #                              close_code=own_close_code)
+
+        self.update_code_style()
 
 
 class Pwa_menu(SWAPYObject):
