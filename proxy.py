@@ -615,7 +615,7 @@ class Process(CodeGenerator):
 
     def __init__(self, parent):
         self.parent = parent
-        self.__var_name = None
+        self._var_name = None
 
     @property
     def _code_self(self):
@@ -635,10 +635,10 @@ class Process(CodeGenerator):
 
     @property
     def code_var_name(self):
-        if self.__var_name is None:
-            self.__var_name = self.code_var_pattern.format(
+        if self._var_name is None:
+            self._var_name = self.code_var_pattern.format(
                 id=self.get_code_id(self.code_var_pattern))
-        return self.__var_name
+        return self._var_name
 
 
 class Pwa_window(SWAPYObject):
@@ -773,6 +773,12 @@ class Pwa_window(SWAPYObject):
         #                              close_code=own_close_code)
 
         self.update_code_style()
+
+    def release_variable(self):
+        super(Pwa_window, self).release_variable()
+        if self.parent._var_name:
+            self.parent._var_name = None
+            self.parent.decrement_code_id(self.parent.code_var_pattern)
 
 
 class Pwa_menu(SWAPYObject):

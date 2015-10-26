@@ -288,10 +288,30 @@ class Frame1(wx.Frame):
         self.textCtrl_Editor.SetValue(code)
 
     def editor_action(self, menu_id):
+        cm = code_manager.CodeManager()
+
         if 'Clear last command' == const.EDITOR_ACTIONS[menu_id]:
-            cm = code_manager.CodeManager()
             cm.clear_last()
             self.textCtrl_Editor.SetValue(cm.get_full_code())
+
+        elif 'Clear the code' == const.EDITOR_ACTIONS[menu_id]:
+            def confirm_clearing():
+                dlg = wx.MessageDialog(self.textCtrl_Editor,
+                                       "Are you sure you want to clear all of "
+                                       "the code?",
+                                       "Clear all?",
+                                       wx.YES_NO | wx.ICON_QUESTION)
+                result = dlg.ShowModal() == wx.ID_YES
+                dlg.Destroy()
+                return result
+
+            if confirm_clearing():
+                cm.clear()
+                self.textCtrl_Editor.SetValue("")
+
+        else:
+            raise RuntimeError("Unknown menu_id=%s for editor "
+                               "menu" % menu_id)
 
     def _init_windows_tree(self):
         self.treeCtrl_ObjectsBrowser.DeleteAllItems()

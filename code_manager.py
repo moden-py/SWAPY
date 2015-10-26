@@ -134,7 +134,8 @@ class CodeManager(object):
         self.snippets.append(snippet)
 
     def clear(self):
-        self.snippets = []
+        while self.snippets:
+            self.clear_last()
 
     def clear_last(self):
         if self.snippets:
