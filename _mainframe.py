@@ -27,6 +27,7 @@ import platform
 import thread
 import wx
 
+import code_manager
 import proxy
 
 #Avoid limit of wx.ListCtrl in 512 symbols
@@ -101,7 +102,7 @@ class Frame1(wx.Frame):
               heading='Value', width=-1)
               
         self.listCtrl_Properties.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK,
-              self.EditorRightClick, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
+              self.PropertiesRightClick, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
               
         #self.listCtrl_Properties.Bind(wx.EVT_LEFT_DCLICK, self.Refresh, id=wxID_FRAME1LISTCTRL1_PROPERTIES)
         #----------
@@ -181,47 +182,52 @@ class Frame1(wx.Frame):
             self.prop_updater.props_update(obj)
             self.tree_updater.tree_update(tree_item, obj)
     
-    def EditorRightClick(self, event):
+    def PropertiesRightClick(self, event):
         self.GLOB_prop_item_index = event.GetIndex()
         menu = wx.Menu()
-        menu.Append(201, 'Copy all')
-        menu.AppendSeparator()
-        menu.Append(202, 'Copy property')
-        menu.Append(203, 'Copy value')
-        menu.Append(204, 'Copy unicode value')
-        self.PopupMenu(menu)     
+        for _id, option_name in sorted(const.PROPERTIES_ACTIONS.items()):
+            if option_name:
+                menu.Append(_id, option_name)
+            else:
+                menu.AppendSeparator()
+        self.PopupMenu(menu)
         menu.Destroy()
 
     def EditorContextMenu(self, event):
-        #self.GLOB_prop_item_index = event.GetIndex()
         menu = wx.Menu()
-        menu.Append(201, 'Copy all')
-        menu.AppendSeparator()
-        menu.Append(202, 'Copy property')
-        menu.Append(203, 'Copy value')
-        menu.Append(204, 'Copy unicode value')
+        for _id, option_name in sorted(const.EDITOR_ACTIONS.items()):
+            if option_name:
+                menu.Append(_id, option_name)
+            else:
+                menu.AppendSeparator()
         self.PopupMenu(menu)
         menu.Destroy()
 
     def menu_action(self, event):
-        id = event.Id
-        #print id
-        if 99 < id < 200 or 299 < id < 400:
+        menu_id = event.Id
+        if menu_id in const.ACTIONS or \
+                menu_id in const.EXTENDED_ACTIONS:
             # object browser menu
-            # regular action
-            self.make_action(id)
-        elif 199 < id < 300:
-            #properties viewer menu
-            self.clipboard_action(id)
+            # regular action or extended action
+            self.make_action(menu_id)
+
+        elif menu_id in const.PROPERTIES_ACTIONS:
+            # properties viewer menu
+            self.properties_action(menu_id)
+
+        elif menu_id in const.EDITOR_ACTIONS:
+            # editor menu
+            self.editor_action(menu_id)
+
         else:
-            raise RuntimeError("Unknown menu id")
-            pass
+            raise RuntimeError("Unknown menu_id=%s for properties "
+                               "menu" % menu_id)
     
-    def clipboard_action(self, menu_id):
+    def properties_action(self, menu_id):
         item = self.GLOB_prop_item_index
         clipdata = wx.TextDataObject()
-        if menu_id == 201:
-            # Copy all
+
+        if 'Copy all' == const.PROPERTIES_ACTIONS[menu_id]:
             all_texts = ''
             items_count = self.listCtrl_Properties.GetItemCount()
             for i in range(items_count):
@@ -229,30 +235,33 @@ class Frame1(wx.Frame):
                 val_name = self.listCtrl_Properties.GetItem(i, 1).GetText()
                 all_texts += '%s : %s' % (prop_name, val_name) + '\n'
             clipdata.SetText(all_texts)
-        elif menu_id == 202:
-            # Copy property
+
+        elif 'Copy property' == const.PROPERTIES_ACTIONS[menu_id]:
             property = self.listCtrl_Properties.GetItem(item,0).GetText()
             clipdata.SetText(property)
-        elif menu_id == 203:
-            # Copy value
+
+        elif 'Copy value' == const.PROPERTIES_ACTIONS[menu_id]:
             #value = self.listCtrl_Properties.GetItem(item,1).GetText()
             key = self.listCtrl_Properties.GetItem(item,0).GetText()
             try:
                 value_str = str(PROPERTIES[key])
             except exceptions.UnicodeEncodeError:
-                value_str = PROPERTIES[key].encode(locale.getpreferredencoding(), 'replace')
+                value_str = PROPERTIES[key].encode(
+                    locale.getpreferredencoding(), 'replace')
             clipdata.SetText(value_str)
-        elif menu_id == 204:
-            # Copy unicode value
+
+        elif 'Copy unicode value' == const.PROPERTIES_ACTIONS[menu_id]:
             key = self.listCtrl_Properties.GetItem(item,0).GetText()
             try:
                 value_unicode_escape = str(PROPERTIES[key])
             except exceptions.UnicodeEncodeError:
-                value_unicode_escape = PROPERTIES[key].encode('unicode-escape', 'replace')
+                value_unicode_escape = PROPERTIES[key].encode('unicode-escape',
+                                                              'replace')
             clipdata.SetText(value_unicode_escape)
         else:
-            #Unknow id
-            pass
+            raise RuntimeError("Unknown menu_id=%s for properties "
+                               "menu" % menu_id)
+
         self.GLOB_prop_item_index = None
         wx.TheClipboard.Open()
         wx.TheClipboard.SetData(clipdata)
@@ -278,6 +287,12 @@ class Frame1(wx.Frame):
         self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
         self.textCtrl_Editor.SetValue(code)
 
+    def editor_action(self, menu_id):
+        if 'Clear last command' == const.EDITOR_ACTIONS[menu_id]:
+            cm = code_manager.CodeManager()
+            cm.clear_last()
+            self.textCtrl_Editor.SetValue(cm.get_full_code())
+
     def _init_windows_tree(self):
         self.treeCtrl_ObjectsBrowser.DeleteAllItems()
         item_data = wx.TreeItemData()
@@ -288,6 +303,7 @@ class Frame1(wx.Frame):
         del item_data
         #the_root = self.treeCtrl_ObjectsBrowser.GetRootItem()
         #self.treeCtrl_ObjectsBrowser.Expand(self.treeCtrl_ObjectsBrowser.GetRootItem())
+
 
 class prop_viewer_updater(object):
     def __init__(self, listctrl):
@@ -331,7 +347,8 @@ class prop_viewer_updater(object):
             #there is the newer object for properties view.
             #Do not update listctrl
             #run _update again
-        
+
+
 class tree_updater(object):
     def __init__(self, treectrl):
         self.treectrl = treectrl

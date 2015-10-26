@@ -754,12 +754,14 @@ class Pwa_window(SWAPYObject):
         Switch to `Start` or `Connect` code
         """
 
-        if extended_action_id == 301:  # Start
+        if 'Application.Start' == EXTENDED_ACTIONS[extended_action_id]:
             self.code_self_style = self.__code_self_start
             self.code_close_style = self.__code_close_start
-        elif extended_action_id == 302:  # Connect
+
+        elif 'Application.Connect' == EXTENDED_ACTIONS[extended_action_id]:
             self.code_self_style = self.__code_self_connect
             self.code_close_style = self.__code_close_connect
+
         else:
             raise RuntimeError("Unknown menu id - %s" % extended_action_id)
 
