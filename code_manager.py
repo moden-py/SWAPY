@@ -82,6 +82,11 @@ class CodeSnippet(object):
 
     @property
     def types(self):
+
+        """
+        Return mask with INIT_SNIPPET and\or ACTION_SNIPPET flags
+        """
+
         mask = 0
         if self.init_code or self.close_code:
             mask |= self.INIT_SNIPPET
@@ -137,10 +142,21 @@ class CodeManager(object):
         self.snippets.append(snippet)
 
     def clear(self):
+
+        """
+        Safely clear all the snippents. Reset all the code counters.
+        """
+
         while self.snippets:
             self.clear_last()
 
     def clear_last(self):
+
+        """
+        Remove the latest snippet, decrease appropriate code counter
+        for snippets of INIT type.
+        """
+
         if self.snippets:
             last_snippet = self.snippets.pop()
             if last_snippet.types & CodeSnippet.INIT_SNIPPET:
@@ -179,6 +195,11 @@ class CodeManager(object):
         return full_code
 
     def get_init_snippet(self, owner):
+
+        """
+        Return the owner's the first INIT snippet.
+        """
+
         for snippet in self.snippets:
             if snippet.owner == owner and \
                     snippet.types & CodeSnippet.INIT_SNIPPET:
@@ -369,6 +390,12 @@ class CodeGenerator(object):
         return self.code_manager.get_full_code()
 
     def update_code_style(self):
+
+        """
+        Seeks for the first INIT snippet and update
+        `init_code` and `close_code`.
+        """
+
         init_code_snippet = self.code_manager.get_init_snippet(self)
         if init_code_snippet:
             own_code_self = self.get_code_self()
@@ -378,6 +405,12 @@ class CodeGenerator(object):
                                          close_code=own_close_code)
 
     def release_variable(self):
+
+        """
+        Clear the access variable to mark the object is not inited and
+        make possible other use the variable name.
+        """
+
         if self.code_var_name:
             self.code_var_name = None
             self.decrement_code_id(self.code_var_pattern)
