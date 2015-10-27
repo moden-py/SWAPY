@@ -382,6 +382,8 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     code_action_pattern = "{var}.{action}()"
     main_parent_type = None
     short_name = 'control'
+    __code_var_pattern = None  # cached value, to access even if the pwa
+    # object was closed
 
     def __init__(self, *args, **kwargs):
         super(SWAPYObject, self).__init__(*args, **kwargs)
@@ -452,14 +454,17 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         shortname of the SWAPY wrapper class.
         """
 
-        var_prefix = self.short_name
-        if 'Class' in self.GetProperties():
-            crtl_class = filter(lambda c: c in string.ascii_letters,
-                                self.GetProperties()['Class']).lower()
-            if crtl_class:
-                var_prefix = crtl_class
+        if self.__code_var_pattern is None:
+            var_prefix = self.short_name
+            if 'Class' in self.GetProperties():
+                crtl_class = filter(lambda c: c in string.ascii_letters,
+                                    self.GetProperties()['Class']).lower()
+                if crtl_class:
+                    var_prefix = crtl_class
 
-        return "{var_prefix}{id}".format(var_prefix=var_prefix, id="{id}")
+            self.__code_var_pattern = "{var_prefix}{id}".format(
+                var_prefix=var_prefix, id="{id}")
+        return self.__code_var_pattern
 
     def SetCodestyle(self, extended_action_id):
 

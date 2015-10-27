@@ -326,6 +326,9 @@ class CodeGenerator(object):
         Walk parents if needed.
         """
 
+        if not self._check_existence():  # target does not exist
+            raise Exception("Target object does not exist")
+
         if self.code_var_name is None:
             # parent/s code is not inited
             code_parents = self.code_parents[:]
