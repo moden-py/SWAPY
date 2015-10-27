@@ -73,18 +73,18 @@ class PwaWrapper(object):
 
     def GetProperties(self):
         '''
-        Return dict of original + additional properies
-        Can be owerridden for non pywinauto obects
+        Return dict of original + additional properties
+        Can be overridden for non pywinauto objects
         '''
         properties = {}
-        properties.update(self._get_properies())
+        properties.update(self._get_properties())
         properties.update(self._get_additional_properties())
         return properties
         
     def Get_subitems(self):
         '''
         Return list of children - [(control_text, swapy_obj),...]
-        Can be owerridden for non pywinauto obects
+        Can be overridden for non pywinauto objects
         '''
         subitems = []
 
@@ -137,7 +137,7 @@ class PwaWrapper(object):
           thread.start_new_thread(self._highlight_control,(3,))
         return 0
 
-    def _get_properies(self):
+    def _get_properties(self):
         '''
         Get original pywinauto's object properties
         '''
@@ -151,7 +151,7 @@ class PwaWrapper(object):
     def _get_additional_properties(self):
 
         """
-        Get additonal useful properties, like a handle, process ID, etc.
+        Get additional useful properties, like a handle, process ID, etc.
         Can be overridden by derived class
         """
 
@@ -229,8 +229,8 @@ class PwaWrapper(object):
 
     def _get_additional_children(self):
         '''
-        Get additonal children, like for a menu, submenu, subtab, etc.
-        Should be owerriden in derived classes of non standart pywinauto object
+        Get additional children, like for a menu, submenu, subtab, etc.
+        Should be overridden in derived classes of non standard pywinauto object
         '''
         return []
         
@@ -358,7 +358,7 @@ class PwaWrapper(object):
         except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
             #For non visible windows
             #...
-            #InvalidWindowHandle: Handle 0x262710 is not a vaild window handle
+            #InvalidWindowHandle: Handle 0x262710 is not a valid window handle
             parent_obj = self.pwa_obj
         except AttributeError:
             return []
@@ -374,7 +374,7 @@ class PwaWrapper(object):
 class SWAPYObject(PwaWrapper, CodeGenerator):
 
     """
-    Mix the pywinauto wrapper and the codegenerator
+    Mix the pywinauto wrapper and the code generator
     """
 
     code_self_pattern_attr = "{var} = {parent_var}.{access_name}"
@@ -451,7 +451,7 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
         """
         Compose variable prefix, based on the control Class or
-        shortname of the SWAPY wrapper class.
+        short name of the SWAPY wrapper class.
         """
 
         if self.__code_var_pattern is None:
@@ -469,7 +469,7 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     def SetCodestyle(self, extended_action_id):
 
         """
-        Switch a control codestyle regarding extended_action_id
+        Switch a control code style regarding extended_action_id
         """
 
         pass
@@ -513,7 +513,7 @@ class VirtualSWAPYObject(SWAPYObject):
     def Select(self):
         self.parent.pwa_obj.Select(self.index)
 
-    def _get_properies(self):
+    def _get_properties(self):
         return {}
     
     def Get_subitems(self):
@@ -597,11 +597,10 @@ class PC_system(SWAPYObject):
         #------------------------
         return windows
 
-    def _get_properies(self):
-        info = {'Platform' : platform.platform(), \
-                'Processor' : platform.processor(), \
-                'PC name' : platform.node() }
-                
+    def _get_properties(self):
+        info = {'Platform': platform.platform(),
+                'Processor': platform.processor(),
+                'PC name': platform.node()}
         return info
         
     def Get_actions(self):
@@ -668,7 +667,7 @@ class Pwa_window(SWAPYObject):
         # Set default style
         self.code_self_style = self.__code_self_start
         self.code_close_style = self.__code_close_start
-        return super(Pwa_window, self).__init__(*args, **kwargs)
+        super(Pwa_window, self).__init__(*args, **kwargs)
 
     def __code_self_connect(self):
         title = self.pwa_obj.WindowText().encode('unicode-escape')
@@ -735,7 +734,7 @@ class Pwa_window(SWAPYObject):
 
     def _get_additional_properties(self):
         '''
-        Get additonal useful properties, like a handle, process ID, etc.
+        Get additional useful properties, like a handle, process ID, etc.
         Can be overridden by derived class
         '''
         additional_properties = {}
@@ -940,7 +939,7 @@ class Pwa_combobox(SWAPYObject):
 
 class virtual_combobox_item(VirtualSWAPYObject):
 
-    def _get_properies(self):
+    def _get_properties(self):
         index = None
         text = self.index
         for i, name in enumerate(self.parent.pwa_obj.ItemTexts()):
@@ -974,7 +973,7 @@ class Pwa_listbox(SWAPYObject):
 
 class virtual_listbox_item(VirtualSWAPYObject):
 
-    def _get_properies(self):
+    def _get_properties(self):
         index = None
         text = self.index
         for i, name in enumerate(self.parent.pwa_obj.ItemTexts()):
@@ -1025,7 +1024,7 @@ class listview_item(SWAPYObject):
                                                    var="{var}")
         return code
 
-    def _get_properies(self):
+    def _get_properties(self):
         item_properties = {'index': self.pwa_obj.item_index,
                            'column_index': self.pwa_obj.subitem_index}
         item_properties.update(self.pwa_obj.ItemData())
@@ -1080,7 +1079,7 @@ class virtual_tab_item(VirtualSWAPYObject):
                                                parent_var="{parent_var}")
         return code
 
-    def _get_properies(self):
+    def _get_properties(self):
         item_properties = {'Index' : self.index,
                            'Texts': self.parent.pwa_obj.GetTabText(self.index)}
         return item_properties
@@ -1170,7 +1169,7 @@ class Pwa_toolbar_button(SWAPYObject):
     def _get_children(self):
         return []
         
-    def _get_properies(self):
+    def _get_properties(self):
         o = self.pwa_obj
         props = {'IsCheckable': o.IsCheckable(),
                  'IsChecked': o.IsChecked(),
@@ -1231,7 +1230,7 @@ class Pwa_tree_item(SWAPYObject):
                                              main_parent_var="{main_parent_var}")
         return code
 
-    def _get_properies(self):
+    def _get_properties(self):
         o = self.pwa_obj
         props = {'Rectangle' : o.Rectangle(),
                  'State' : o.State(),
