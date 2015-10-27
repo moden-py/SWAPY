@@ -111,12 +111,12 @@ class CodeManager(object):
     inited = False
 
     def __new__(cls, *args, **kwargs):
-        if cls.single_object:
-            return cls.single_object
-        else:
+        if cls.single_object is None:
             new = super(CodeManager, cls).__new__(cls, *args, **kwargs)
             cls.single_object = new
             return new
+        else:
+            return cls.single_object
 
     def __init__(self, indent_symbols=' '*4):
         if not self.inited:
@@ -124,6 +124,9 @@ class CodeManager(object):
             self.indent_symbols = indent_symbols
 
             self.inited = True
+
+    def __len__(self):
+        return len(self.snippets)
 
     def _line(self, code, indent_count=0):
         return "{indents}{code}".format(

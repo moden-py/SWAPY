@@ -194,12 +194,19 @@ class Frame1(wx.Frame):
         menu.Destroy()
 
     def EditorContextMenu(self, event):
+        cm = code_manager.CodeManager()
         menu = wx.Menu()
+
         for _id, option_name in sorted(const.EDITOR_ACTIONS.items()):
             if option_name:
                 menu.Append(_id, option_name)
+                if not cm:  # empty code
+                    menu.Enable(_id, False)
             else:
                 menu.AppendSeparator()
+        if not self.textCtrl_Editor.GetStringSelection():  # empty selection
+            menu.Enable(404, False)  # 404: 'Copy'
+
         self.PopupMenu(menu)
         menu.Destroy()
 
