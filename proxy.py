@@ -528,7 +528,21 @@ class PC_system(SWAPYObject):
     handle = 0
     short_name = 'pc'  # hope it never be used in the code generator
 
-    # code_self_pattern = "{var} = pywinauto.application.Application()\n"
+    single_object = None
+    inited = False
+
+    def __new__(cls, *args, **kwargs):
+        if cls.single_object is None:
+            new = super(PC_system, cls).__new__(cls, *args, **kwargs)
+            cls.single_object = new
+            return new
+        else:
+            return cls.single_object
+
+    def __init__(self, *args, **kwargs):
+        if not self.inited:
+            super(PC_system, self).__init__(*args, **kwargs)
+            self.inited = True
 
     @property
     def _code_self(self):
