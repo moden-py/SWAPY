@@ -282,14 +282,14 @@ class Frame1(wx.Frame):
 
         if menu_id in const.ACTIONS:
             # Regular action
-            0 / 0
             action = const.ACTIONS[menu_id]
             try:
                 code = obj.Get_code(action)
                 obj.Exec_action(action)
-            except Exception as e:
+            except:
                 code = None
-                dlg = wx.MessageDialog(self, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+                dlg = wx.MessageDialog(self, traceback.format_exc(5),
+                                       'Warning!', wx.OK | wx.ICON_WARNING)
                 dlg.ShowModal()
                 dlg.Destroy()
 
@@ -298,9 +298,10 @@ class Frame1(wx.Frame):
             try:
                 obj.SetCodestyle(menu_id)
                 code = obj.Get_code()
-            except Exception:
+            except:
                 code = None
-                dlg = wx.MessageDialog(self, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+                dlg = wx.MessageDialog(self, traceback.format_exc(5),
+                                       'Warning!', wx.OK | wx.ICON_WARNING)
                 dlg.ShowModal()
                 dlg.Destroy()
 
@@ -386,9 +387,10 @@ class prop_viewer_updater(object):
         global PROPERTIES
         try:
             PROPERTIES = obj.GetProperties()
-        except Exception:
+        except:
             PROPERTIES = {}
-            dlg = wx.MessageDialog(self.listctrl, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+            dlg = wx.MessageDialog(self.listctrl, traceback.format_exc(5),
+                                   'Warning!', wx.OK | wx.ICON_WARNING)
             dlg.ShowModal()
             dlg.Destroy()
 
@@ -402,7 +404,8 @@ class prop_viewer_updater(object):
                 try:
                     p_values_str = str(PROPERTIES[p_name])
                 except exceptions.UnicodeEncodeError:
-                    p_values_str = PROPERTIES[p_name].encode(locale.getpreferredencoding(), 'replace')
+                    p_values_str = PROPERTIES[p_name].encode(
+                        locale.getpreferredencoding(), 'replace')
                 index = self.listctrl.InsertStringItem(0, p_name_str)
                 self.listctrl.SetStringItem(index, 1, p_values_str)
             self.queue = []
