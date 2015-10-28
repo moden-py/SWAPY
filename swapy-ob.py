@@ -20,9 +20,24 @@
 
 #Boa:App:BoaApp
 
+import sys
+import traceback
 import wx
 
 import _mainframe
+
+def foo(exctype, value, tb):
+    frame = wx.GetApp().GetTopWindow()
+    dlg = wx.MessageDialog(frame,
+                           ''.join(traceback.format_exception(exctype,
+                                                              value, tb, 5)),
+                           'Error!',
+                           wx.OK | wx.ICON_ERROR)
+    dlg.ShowModal()
+    dlg.Destroy()
+
+sys.excepthook = foo
+
 
 modules ={'_mainframe': [0, '', '_mainframe.py'], 'proxy': [0, '', 'proxy.py']}
 

@@ -282,6 +282,7 @@ class Frame1(wx.Frame):
 
         if menu_id in const.ACTIONS:
             # Regular action
+            0 / 0
             action = const.ACTIONS[menu_id]
             try:
                 code = obj.Get_code(action)
