@@ -25,6 +25,7 @@ import exceptions
 import locale
 import platform
 import thread
+import traceback
 import wx
 
 import code_manager
@@ -36,10 +37,12 @@ PROPERTIES = {}
 def create(parent):
     return Frame1(parent)
 
+
 [wxID_FRAME1, wxID_FRAME1LISTCTRL1_PROPERTIES, wxID_FRAME1STATICBOX_EDITOR, 
  wxID_FRAME1STATICBOX_OBJECTSBROWSER, wxID_FRAME1STATICBOX_PROPRTIES, 
  wxID_FRAME1TEXTCTRL_EDITOR, wxID_FRAME1TREECTRL_OBJECTSBROWSER
 ] = [wx.NewId() for _init_ctrls in range(7)]
+
 
 class Frame1(wx.Frame):
     """
@@ -275,24 +278,34 @@ class Frame1(wx.Frame):
         wx.TheClipboard.Close()
 
     def make_action(self, menu_id):
-        #tree_item = self.treeCtrl_ObjectsBrowser.GetSelection()
-        #obj = self.treeCtrl_ObjectsBrowser.GetItemData(tree_item).GetData()
         obj = self.GLOB_last_rclick_tree_obj
-        #self.textCtrl_Editor.AppendText(obj.Get_code(menu_id))
-        try:
-            action = const.ACTIONS[menu_id]
-        except KeyError:
-            # Extended action
-            extended_action = const.EXTENDED_ACTIONS[menu_id]
-            obj.SetCodestyle(menu_id)
-            code = obj.Get_code()
-        else:
-            # Regular action
-            code = obj.Get_code(action)
-            obj.Exec_action(action)
 
-        self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
-        self.textCtrl_Editor.SetValue(code)
+        if menu_id in const.ACTIONS:
+            # Regular action
+            action = const.ACTIONS[menu_id]
+            try:
+                code = obj.Get_code(action)
+                obj.Exec_action(action)
+            except Exception as e:
+                code = None
+                dlg = wx.MessageDialog(self, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+                dlg.ShowModal()
+                dlg.Destroy()
+
+        elif menu_id in const.EXTENDED_ACTIONS:
+            # Extended action
+            try:
+                obj.SetCodestyle(menu_id)
+                code = obj.Get_code()
+            except Exception:
+                code = None
+                dlg = wx.MessageDialog(self, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+                dlg.ShowModal()
+                dlg.Destroy()
+
+        if code is not None:
+            self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
+            self.textCtrl_Editor.SetValue(code)
 
     def editor_action(self, menu_id):
         cm = code_manager.CodeManager()
@@ -370,7 +383,14 @@ class prop_viewer_updater(object):
         index = self.listctrl.InsertStringItem(0, 'Updating...')
         self.listctrl.SetStringItem(index, 1, '')
         global PROPERTIES
-        PROPERTIES = obj.GetProperties()
+        try:
+            PROPERTIES = obj.GetProperties()
+        except Exception:
+            PROPERTIES = {}
+            dlg = wx.MessageDialog(self.listctrl, traceback.format_exc(5), 'Warning!', wx.OK | wx.ICON_WARNING)
+            dlg.ShowModal()
+            dlg.Destroy()
+
         param_names = PROPERTIES.keys()
         param_names.sort(key=lambda name: name.lower(), reverse=True)
         
