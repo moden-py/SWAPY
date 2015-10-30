@@ -172,6 +172,11 @@ class EmptyTextsTestCases(BaseTestCase):
 class CodeGeneratorTestCases(BaseTestCase):
 
     def testInitAllParents(self):
+
+        """
+        all parents are inited after Get_code on a sub child.
+        """
+
         expected_code = \
             "from pywinauto.application import Application\n\n" \
             "app = Application().Start(cmd_line=u'{app_path}')\n" \
@@ -194,32 +199,11 @@ class CodeGeneratorTestCases(BaseTestCase):
         expected_code = expected_code.format(app_path=app_path)
         self.assertEquals(expected_code, code)
 
-    def testReuseVariable(self):
-        expected_code = \
-            "from pywinauto.application import Application\n\n" \
-            "app = Application().Start(cmd_line=u'{app_path}')\n" \
-            "window = app.Dialog\n" \
-            "window.Wait('ready')\n" \
-            "systreeview = window.TreeView\n" \
-            "tree_item = systreeview.GetItem([u'Birds'])\n" \
-            "tree_item.Expand()\n" \
-            "tree_item.Click()\n\n" \
-            "app.Kill_()"
-
-        path = (u'Common Controls Sample',
-                u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
-                u'Birds',
-                )
-
-        with test_app("CmnCtrl1.exe") as (app, app_path):
-            proxy_obj = self.get_proxy_object(path)
-            proxy_obj.Get_code('Expand')  # First call
-            code = proxy_obj.Get_code('Click')
-
-        expected_code = expected_code.format(app_path=app_path)
-        self.assertEquals(expected_code, code)
-        
     def testChangeCodeStyle(self):
+
+        """
+        code style of a top window may be changed on fly
+        """
 
         expected_code_connect = \
             "from pywinauto.application import Application\n\n" \
@@ -273,6 +257,10 @@ class CodeGeneratorTestCases(BaseTestCase):
 
     def testSecondAppCounter(self):
 
+        """
+        app counter increased for another window
+        """
+
         expected_code_1app = \
             "from pywinauto.application import Application\n\n" \
             "app = Application().Start(cmd_line=u'{app_path1}')\n" \
@@ -324,6 +312,298 @@ class CodeGeneratorTestCases(BaseTestCase):
         expected_code_2apps = expected_code_2apps.format(app_path1=app_path1,
                                                          app_path2=app_path2)
         self.assertEquals(expected_code_2apps, code_2apps)
+
+
+class VariableReuseTestCases(BaseTestCase):
+
+    def testReuseVariable(self):
+
+        """
+        an object variable used again for a new action
+        """
+
+        expected_code = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "systreeview = window.TreeView\n" \
+            "tree_item = systreeview.GetItem([u'Birds'])\n" \
+            "tree_item.Expand()\n" \
+            "tree_item.Click()\n\n" \
+            "app.Kill_()"
+
+        path = (u'Common Controls Sample',
+                u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
+                u'Birds',
+                )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj = self.get_proxy_object(path)
+            proxy_obj.Get_code('Expand')  # First call
+            code = proxy_obj.Get_code('Click')
+
+        expected_code = expected_code.format(app_path=app_path)
+        self.assertEquals(expected_code, code)
+
+    def testSameAppAfterRefresh(self):
+
+        """
+        app & window counters do not increase after refresh for the same window
+        """
+
+        expected_code = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "window.Click()\n" \
+            "window.Click()\n\n" \
+            "app.Kill_()"
+
+        control_path = (u'Common Controls Sample',
+                        )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj_before = self.get_proxy_object(control_path)
+            _ = proxy_obj_before.Get_code('Click')
+
+            # rebuild elements tree (refresh)
+            proxy_obj_after = self.get_proxy_object(control_path)
+
+            code = proxy_obj_after.Get_code('Click')
+
+        self.assertTrue(proxy_obj_before is proxy_obj_after)
+
+        expected_code = expected_code.format(app_path=app_path)
+        self.assertEquals(expected_code, code)
+
+    def testSameAppSecondWindow(self):
+
+        """
+        variable app reused for both windows of the same process
+        """
+
+        expected_code = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "{win_ident} = app[u'RowList Sample Application']\n" \
+            "{win_ident}.Wait('ready')\n" \
+            "menu_item = {win_ident}.MenuItem(u'&Help->&About RowList...')\n" \
+            "menu_item.Click()\n" \
+            "window = app.Dialog\n" \
+            "button = window.OK\n" \
+            "button.Click()\n\n" \
+            "app.Kill_()"
+
+        path_main_window = (u'RowList Sample Application',
+
+                            u'!Menu',
+                            u'&Help',
+                            u'&Help submenu',
+                            u'&About RowList...',
+                            )
+
+        path_about_window = (u'About RowList',
+
+                             u'OK',
+                             )
+
+        with test_app("RowList.exe") as (app, app_path):
+
+            window = app.top_window_()
+            class_name = window.GetProperties()['Class']
+            crtl_class = filter(lambda c: c in string.ascii_letters,
+                                class_name).lower()
+
+            proxy_obj_main_window = self.get_proxy_object(path_main_window)
+            proxy_obj_main_window.pwa_obj.Click()  # Click menu
+            _ = proxy_obj_main_window.Get_code('Click')
+
+            # new window
+            proxy_obj_about_window = self.get_proxy_object(path_about_window)
+            code = proxy_obj_about_window.Get_code('Click')
+
+        expected_code = expected_code.format(app_path=app_path,
+                                             win_ident=crtl_class)
+        self.assertEquals(expected_code, code)
+
+
+class ClearCommandsTestCases(BaseTestCase):
+
+    def testClearLastCommand(self):
+
+        """
+        last command is cleared
+        """
+
+        expected_code_full = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "systabcontrol = window.TabControl\n" \
+            "systabcontrol.Select(u'CTreeCtrl')\n\n" \
+            "app.Kill_()"
+
+        expected_code_cleared = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "systabcontrol = window.TabControl\n\n" \
+            "app.Kill_()"
+
+        path = (u'Common Controls Sample',
+
+                u'CTreeCtrl, CAnimateCtrl, CToolBarCtrl, CDateTimeCtrl, '
+                u'CMonthCalCtrl',
+
+                u'CTreeCtrl',
+                )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj = self.get_proxy_object(path)
+            code_full = proxy_obj.Get_code('Select')
+
+            cm = code_manager.CodeManager()
+            cm.clear_last()
+            code_cleared = cm.get_full_code()
+
+        expected_code_full = expected_code_full.format(app_path=app_path)
+        self.assertEquals(expected_code_full, code_full)
+
+        expected_code_cleared = expected_code_cleared.format(app_path=app_path)
+        self.assertEquals(expected_code_cleared, code_cleared)
+
+    def testClear2LastCommand(self):
+
+        """
+        last two commands are cleared
+        """
+
+        expected_code_full = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "systabcontrol = window.TabControl\n" \
+            "systabcontrol.Select(u'CTreeCtrl')\n\n" \
+            "app.Kill_()"
+
+        expected_code_cleared = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n\n" \
+            "app.Kill_()"
+
+        path = (u'Common Controls Sample',
+
+                u'CTreeCtrl, CAnimateCtrl, CToolBarCtrl, CDateTimeCtrl, '
+                u'CMonthCalCtrl',
+
+                u'CTreeCtrl',
+                )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj = self.get_proxy_object(path)
+            code_full = proxy_obj.Get_code('Select')
+
+            cm = code_manager.CodeManager()
+            cm.clear_last()
+            cm.clear_last()
+            code_cleared = cm.get_full_code()
+
+        expected_code_full = expected_code_full.format(app_path=app_path)
+        self.assertEquals(expected_code_full, code_full)
+
+        expected_code_cleared = expected_code_cleared.format(app_path=app_path)
+        self.assertEquals(expected_code_cleared, code_cleared)
+
+    def testClearAll(self):
+
+        """
+        clear all the code
+        """
+
+        expected_code_full = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "systabcontrol = window.TabControl\n" \
+            "systabcontrol.Select(u'CTreeCtrl')\n\n" \
+            "app.Kill_()"
+
+        path = (u'Common Controls Sample',
+
+                u'CTreeCtrl, CAnimateCtrl, CToolBarCtrl, CDateTimeCtrl, '
+                u'CMonthCalCtrl',
+
+                u'CTreeCtrl',
+                )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj = self.get_proxy_object(path)
+            code_full = proxy_obj.Get_code('Select')
+
+            cm = code_manager.CodeManager()
+            cm.clear()
+            code_cleared = cm.get_full_code()
+
+        expected_code_full = expected_code_full.format(app_path=app_path)
+        self.assertEquals(expected_code_full, code_full)
+
+        self.assertEquals("", code_cleared)
+
+    def testReleaseVariable(self):
+
+        """
+        variable released while the clear and used again by other object
+        """
+
+        expected_code_button1 = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "button = window.CheckBox8\n" \
+            "button.Click()\n\n" \
+            "app.Kill_()"
+
+        expected_code_button2 = \
+            "from pywinauto.application import Application\n\n" \
+            "app = Application().Start(cmd_line=u'{app_path}')\n" \
+            "window = app.Dialog\n" \
+            "window.Wait('ready')\n" \
+            "button = window.CheckBox5\n" \
+            "button.Click()\n\n" \
+            "app.Kill_()"
+
+        path_button1 = (u'Common Controls Sample',
+                        u'TVS_CHECKBOXES',
+                        )
+
+        path_button2 = (u'Common Controls Sample',
+                        u'TVS_DISABLEDRAGDROP',
+                        )
+
+        with test_app("CmnCtrl1.exe") as (app, app_path):
+            proxy_obj_button1 = self.get_proxy_object(path_button1)
+            code_button1 = proxy_obj_button1.Get_code('Click')
+
+            cm = code_manager.CodeManager()
+            cm.clear_last()
+
+            proxy_obj_button2 = self.get_proxy_object(path_button2)
+            code_button2 = proxy_obj_button2.Get_code('Click')
+
+        expected_code_button1 = expected_code_button1.format(app_path=app_path)
+        self.assertEquals(expected_code_button1, code_button1)
+
+        expected_code_button2 = expected_code_button2.format(app_path=app_path)
+        self.assertEquals(expected_code_button2, code_button2)
 
 
 class ControlsCodeTestCases(BaseTestCase):
