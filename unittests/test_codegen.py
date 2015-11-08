@@ -21,6 +21,7 @@
 from contextlib import contextmanager
 import os
 import string
+import time
 import unittest
 
 from pywinauto.application import Application
@@ -32,6 +33,7 @@ import proxy
 
 from pywinauto import actionlogger
 actionlogger.enable()
+from PIL import ImageGrab
 
 SAMPLE_APPS_PATH = u"..\\apps\\MFC_samples"
 
@@ -99,6 +101,10 @@ class BaseTestCase(unittest.TestCase):
 
 class ObjectBrowserTestCases(BaseTestCase):
 
+    def tearDown(self):
+        ImageGrab.grab().save("%s.jpg" % time.time(), "JPEG")
+        super(ObjectBrowserTestCases, self).tearDown()
+
     def testNestedControl(self):
 
         direct_path = (u'Common Controls Sample',
@@ -127,7 +133,6 @@ class ObjectBrowserTestCases(BaseTestCase):
                 )
 
         with test_app("RowList.exe") as (app, app_path):
-            import time
             w = app['RowList Sample Application']
             print time.time()
             w.Wait('ready')

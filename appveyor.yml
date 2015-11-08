@@ -65,3 +65,4 @@ build_script:
 artifacts:
   # Archive the generated coverage report in the ci.appveyor.com build report.
   - path: swapy*.exe
+  - path: *.jpg
