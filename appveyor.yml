@@ -67,5 +67,5 @@ artifacts:
   - path: swapy*.exe
     name: binaries
 
-  - path: scr*.jpg
-    name: screenshots
+on_failure:
+  - "%CMD_IN_ENV% appveyor PushArtifact: scr*.jpg"
