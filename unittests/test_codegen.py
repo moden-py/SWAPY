@@ -102,7 +102,7 @@ class BaseTestCase(unittest.TestCase):
 class ObjectBrowserTestCases(BaseTestCase):
 
     def tearDown(self):
-        ImageGrab.grab().save("%s.jpg" % time.time(), "JPEG")
+        ImageGrab.grab().save("scr%s.jpg" % time.time(), "JPEG")
         super(ObjectBrowserTestCases, self).tearDown()
 
     def testNestedControl(self):
