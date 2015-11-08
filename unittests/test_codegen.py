@@ -63,7 +63,7 @@ class BaseTestCase(unittest.TestCase):
         All setUp actions moved in the test_app contextmanager.
         """
 
-        pass
+        self.pwa_root = None
 
     def tearDown(self):
 
@@ -77,7 +77,7 @@ class BaseTestCase(unittest.TestCase):
         del self.pwa_root
 
     def get_proxy_object(self, path):
-        if not hasattr(self, 'pwa_root'):
+        if self.pwa_root is None:
             self.pwa_root = proxy.PC_system(None)
 
         proxy_object = self.pwa_root
