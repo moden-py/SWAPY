@@ -30,6 +30,7 @@ import wx
 
 import code_manager
 import proxy
+import tools
 
 #Avoid limit of wx.ListCtrl in 512 symbols
 PROPERTIES = {}
@@ -288,10 +289,8 @@ class Frame1(wx.Frame):
                 obj.Exec_action(action)
             except:
                 code = None
-                dlg = wx.MessageDialog(self, traceback.format_exc(5),
-                                       'Warning!', wx.OK | wx.ICON_WARNING)
-                dlg.ShowModal()
-                dlg.Destroy()
+                traceback_info = traceback.format_exc(5)
+                tools.show_error_message('WARNING', traceback_info)
 
         elif menu_id in const.EXTENDED_ACTIONS:
             # Extended action
@@ -300,10 +299,8 @@ class Frame1(wx.Frame):
                 code = obj.Get_code()
             except:
                 code = None
-                dlg = wx.MessageDialog(self, traceback.format_exc(5),
-                                       'Warning!', wx.OK | wx.ICON_WARNING)
-                dlg.ShowModal()
-                dlg.Destroy()
+                traceback_info = traceback.format_exc(5)
+                tools.show_error_message('WARNING', traceback_info)
 
         if code is not None:
             self.textCtrl_Editor.SetForegroundColour(wx.BLACK)
