@@ -68,4 +68,4 @@ artifacts:
     name: binaries
 
 on_failure:
-  - "%CMD_IN_ENV% appveyor PushArtifact: scr*.jpg"
+  - "appveyor PushArtifact scr*.jpg"
