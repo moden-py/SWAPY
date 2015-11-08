@@ -127,10 +127,16 @@ class ObjectBrowserTestCases(BaseTestCase):
                 )
 
         with test_app("RowList.exe") as (app, app_path):
+            import time
+            w = app['RowList Sample Application']
+            print time.time()
+            w.Wait('ready')
+            print time.time()
+            time.sleep(3)
             print 1, app_path
-            print 2, app['RowList Sample Application']._menu_handle()
-            print 3, app['RowList Sample Application'].handle
-            app['RowList Sample Application'].SetFocus()
+            print 2, w._menu_handle()
+            print 3, w.handle
+            w.SetFocus()
 
             app['RowList Sample Application'].MenuItem(
                 u'&Help->&About RowList...').Select()  # open About dialog
