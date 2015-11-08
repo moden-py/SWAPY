@@ -30,6 +30,8 @@ import code_manager
 import const
 import proxy
 
+from pywinauto import actionlogger
+actionlogger.enable()
 
 SAMPLE_APPS_PATH = u"..\\apps\\MFC_samples"
 
@@ -125,6 +127,11 @@ class ObjectBrowserTestCases(BaseTestCase):
                 )
 
         with test_app("RowList.exe") as (app, app_path):
+            print 1, app_path
+            print 2, app['RowList Sample Application']._menu_handle()
+            print 3, app['RowList Sample Application'].handle
+            app['RowList Sample Application'].SetFocus()
+
             app['RowList Sample Application'].MenuItem(
                 u'&Help->&About RowList...').Select()  # open About dialog
             try:
