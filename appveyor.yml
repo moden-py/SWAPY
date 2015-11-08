@@ -68,4 +68,5 @@ artifacts:
     name: binaries
 
 on_failure:
-  - "appveyor PushArtifact scr*.jpg"
+  - "7z a screenshots.zip scr*.jpg"
+  - "appveyor PushArtifact screenshots.zip"
