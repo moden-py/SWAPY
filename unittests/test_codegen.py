@@ -106,7 +106,7 @@ class ObjectBrowserTestCases(BaseTestCase):
         super(ObjectBrowserTestCases, self).tearDown()
 
     def testNestedControl(self):
-
+        self.assertTrue(False)
         direct_path = (u'Common Controls Sample',
                        u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
                        u'Birds',
@@ -132,6 +132,8 @@ class ObjectBrowserTestCases(BaseTestCase):
                 u'RowList Version 1.0',
                 )
 
+        self.assertTrue(False)
+
         with test_app("RowList.exe") as (app, app_path):
             w = app['RowList Sample Application']
             print time.time()
@@ -156,6 +158,7 @@ class ObjectBrowserTestCases(BaseTestCase):
 class EmptyTextsTestCases(BaseTestCase):
 
     def testToolbarCode(self):
+        self.assertTrue(False)
         expected_code = \
             "from pywinauto.application import Application\n\n" \
             "app = Application().Start(cmd_line=u'{app_path}')\n" \
