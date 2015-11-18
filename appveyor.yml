@@ -45,6 +45,7 @@ build: off  # disable automatic builds
 
 before_build:
   - "%CMD_IN_ENV% qwinsta"
+  - "%CMD_IN_ENV% tscon 1"
   # Download sample apps
   - "%CMD_IN_ENV% svn checkout https://github.com/pywinauto/pywinauto/trunk/apps ./apps"
   # Run unittests
