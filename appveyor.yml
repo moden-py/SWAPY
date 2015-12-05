@@ -28,6 +28,8 @@ install:
   #- ECHO "Notepad location "
   #- ps: "ls C:\\Windows\\System32\\notepad.exe"
 
+   - ps: iex ((new-object net.webclient).DownloadString('https://raw.githubusercontent.com/appveyor/ci/master/scripts/enable-desktop.ps1'))
+
    - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
 
    # Install the build dependencies of the project.
