@@ -14,4 +14,5 @@ exe = EXE(pyz,
           strip=False,
           upx=False,
           console=True,
-          icon='swapy_dog.ico')
+          icon='swapy_dog.ico',
+          manifest='swapy.exe.manifest')
