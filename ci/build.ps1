@@ -7,7 +7,7 @@ function BuildExe ($python_version, $architecture, $python_home, $build_type) {
     Write-Host "Building with PyInstaller" $python_version "for" $architecture "bit architecture to" $python_home
 	$pyinstaller_path = $python_home + "\Scripts\pyinstaller.exe"
 	if ($build_type -eq "release") {
-	    $args = "--clean swapy.spec"
+	    $args = "--clean --uac-admin swapy.spec"
 	    $input_filename = "swapy.exe"
         if ($architecture -eq "32") {
             $out_filename = "swapy32bit.exe"
@@ -15,7 +15,7 @@ function BuildExe ($python_version, $architecture, $python_home, $build_type) {
             $out_filename = "swapy64bit.exe"
         }
     } else {
-        $args = "--clean swapy-debug.spec"
+        $args = "--clean --uac-admin swapy-debug.spec"
         $input_filename = "swapy-debug.exe"
         if ($architecture -eq "32") {
             $out_filename = "swapy32bit-debug.exe"
