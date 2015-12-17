@@ -439,10 +439,11 @@ class tree_updater(object):
         for i_name, i_obj in subitems:
           item_data = wx.TreeItemData()
           item_data.SetData(i_obj)
-          try:
-              i_name_str = str(i_name)
-          except exceptions.UnicodeEncodeError:
-              i_name_str = i_name.encode(locale.getpreferredencoding(), 'replace')
+          # try:
+          #     i_name_str = str(i_name)
+          # except exceptions.UnicodeEncodeError:
+          #     i_name_str = i_name.encode(locale.getpreferredencoding(), 'replace')
+          i_name_str = i_name
 
           try:
             item_id = self.treectrl.AppendItem(tree_item, i_name_str, data=item_data)
