@@ -38,6 +38,7 @@ proxy module for pywinauto
 
 
 pywinauto.timings.Timings.window_find_timeout = 1
+pywinauto.backend.activate("uia")
 
 
 def resource_path(filename):
@@ -134,7 +135,7 @@ class PwaWrapper(object):
 
     def Highlight_control(self): 
         if self._check_visibility():
-          thread.start_new_thread(self._highlight_control,(3,))
+          self._highlight_control(3)
         return 0
 
     def _get_properties(self):
@@ -182,7 +183,9 @@ class PwaWrapper(object):
         [(control_text, swapy_obj),...]
         """
 
-        if self.pwa_obj.Parent() and isinstance(self.parent, Pwa_window):
+        if not isinstance(self, SWAPYUIAObject) \
+                and self.pwa_obj.Parent() \
+                and isinstance(self.parent, Pwa_window):
             # Hide children of the non top level window control.
             # Expect all the children are accessible from the top level window.
             return []
@@ -260,6 +263,8 @@ class PwaWrapper(object):
             return 'tree_view'
         elif type(obj) == pywinauto.controls.common_controls._treeview_element:
             return 'tree_item'
+        elif type(obj) == pywinauto.controls.UIAWrapper.UIAWrapper:
+            return 'uia_object'
         else:
             return 'unknown'
         
@@ -289,6 +294,8 @@ class PwaWrapper(object):
             return Pwa_tree(pwa_obj, self)
         if pwa_type == 'tree_item':
             return Pwa_tree_item(pwa_obj, self)
+        if pwa_type == 'uia_object':
+            return SWAPYUIAObject(pwa_obj, self)
         else:
             return SWAPYObject(pwa_obj, self)
 
@@ -363,8 +370,8 @@ class PwaWrapper(object):
         except AttributeError:
             return []
 
-        visible_controls = [pwa_app.window_(handle=ch) for ch in
-                            pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
+        visible_controls = [pwa_app.window_(handle=ch.handle) for ch in
+                            pywinauto.findwindows.find_elements(parent=parent_obj.handle, top_level_only=False)]
         uniq_names_obj = [(uniq_name, obj) for uniq_name, obj
                       in pywinauto.findbestmatch.build_unique_dict(visible_controls).items()
                       if uniq_name != '' and (not target_control or obj.WrapperObject() == target_control)]
@@ -479,6 +486,25 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         pass
 
 
+class SWAPYUIAObject(SWAPYObject):
+     def _check_existence(self):
+        '''
+        Check control/window Exists.
+        Return True or False if fails
+        '''
+        return True
+
+     def _highlight_control(self, repeat = 1):
+        pass
+
+     def _get_properties(self):
+        '''
+        Get original pywinauto's object properties
+        '''
+        #print type(self.pwa_obj)
+        properties = {} #workaround
+        return properties
+
 class VirtualSWAPYObject(SWAPYObject):
     def __init__(self, parent, index):
         self.parent = parent
@@ -570,7 +596,7 @@ class PC_system(SWAPYObject):
         app = pywinauto.application.Application()
         for i in range(try_count):
           try:
-            handles = pywinauto.findwindows.find_windows()
+            handles = pywinauto.findwindows.enum_windows()
           except exceptions.OverflowError: # workaround for OverflowError: array too large
             time.sleep(1)
           except exceptions.MemoryError:# workaround for MemoryError
@@ -582,19 +608,19 @@ class PC_system(SWAPYObject):
           handles = []
         #we have to find taskbar in windows list
         warnings.filterwarnings("ignore", category=FutureWarning) #ignore future warning in taskbar module
-        from pywinauto import taskbar
-        taskbar_handle = taskbar.TaskBarHandle()
+        # from pywinauto import taskbar
+        # taskbar_handle = taskbar.TaskBarHandle()
         for w_handle in handles:
             wind = app.window_(handle=w_handle)
-            if w_handle == taskbar_handle:
-                title = 'TaskBar'
+        #     if w_handle == taskbar_handle:
+        #         title = 'TaskBar'
+        #     else:
+            texts = wind.Texts()
+            texts = filter(bool, texts)  # filter out '' and None items
+            if not texts:
+                title = 'Window#%s' % w_handle
             else:
-                texts = wind.Texts()
-                texts = filter(bool, texts)  # filter out '' and None items
-                if not texts:
-                    title = 'Window#%s' % w_handle
-                else:
-                    title = ', '.join(texts)
+                title = ', '.join(texts)
             windows.append((title, self._get_swapy_object(wind)))
         windows.sort(key=lambda name: name[0].lower())
         #-----------------------

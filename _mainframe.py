@@ -373,7 +373,7 @@ class prop_viewer_updater(object):
         if self.updating:
             return 0 
         else:
-            thread.start_new_thread(self._update,())
+            self._update()
             
     def _update(self):
         self.updating = True
@@ -426,7 +426,7 @@ class tree_updater(object):
         if self.updating:
             return 0 
         else:
-            thread.start_new_thread(self._update,())
+            self._update()
             
     def _update(self):
         self.updating = True
