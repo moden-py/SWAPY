@@ -19,16 +19,15 @@
 #    Boston, MA 02111-1307 USA
 
 import exceptions
-import platform
 import os
-import sys
+import platform
 import string
-import time
+import sys
 import thread
+import time
 import warnings
 
 import pywinauto
-
 from code_manager import CodeGenerator, check_valid_identifier
 from const import *
 
@@ -53,32 +52,6 @@ def resource_path(filename):
         ###os.chdir(sys.path.dirname(sys.argv[0]))
         filename = os.path.join(os.path.dirname(sys.argv[0]), filename)
     return filename
-
-
-def object_to_text(obj):  # TODO: move to the tools
-    """
-    Convert any object to srting or unicode.
-
-    The problem details:
-    https://bugs.python.org/issue5876
-    https://github.com/pywinauto/SWAPY/issues/78
-    """
-    # TODO: it's time to upgrade to Python 3!
-
-    if isinstance(obj, basestring):
-        # do not convert if string or unicode
-        obj_text = obj
-    else:
-        # list, set, object or something else
-        try:
-            obj_text = str(obj)
-        except exceptions.UnicodeEncodeError:
-            # convert items manually.
-
-            # a dict values lost in this case
-            obj_text = str([unicode(item) for item in obj])
-
-    return obj_text
 
 
 class PwaWrapper(object):
