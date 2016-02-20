@@ -19,3 +19,6 @@
 #    Boston, MA 02111-1307 USA
 
 """unit tests for SWAPY."""
+
+# Use in your tests
+# ImageGrab.grab().save("scr%s.jpg" % time.time(), "JPEG")

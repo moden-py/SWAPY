@@ -55,7 +55,7 @@ def resource_path(filename):
     return filename
 
 
-def object_to_text(obj):
+def object_to_text(obj):  # TODO: move to the tools
     """
     Convert any object to srting or unicode.
 
