@@ -386,9 +386,13 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
     def __init__(self, *args, **kwargs):
         super(SWAPYObject, self).__init__(*args, **kwargs)
-        self.code_parents = self.get_code_parents()
 
-    def get_code_parents(self):
+    @property
+    def direct_parent(self):
+        return self.parent
+
+    @property
+    def code_parents(self):
 
         """
         Collect a list of all parents needed to access the control.
@@ -480,13 +484,13 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
 class VirtualSWAPYObject(SWAPYObject):
     def __init__(self, parent, index):
+        # TODO: maybe use super here?
         self.parent = parent
         self.index = index
         self.pwa_obj = self
         self._check_visibility = self.parent._check_visibility
         self._check_actionable = self.parent._check_actionable
         self._check_existence = self.parent._check_existence
-        self.code_parents = self.get_code_parents()
 
     code_action_pattern = "{parent_var}.{action}({index})"
 
@@ -676,6 +680,16 @@ class Process(CodeGenerator):
             self._var_name = self.code_var_pattern.format(
                 id=self.get_code_id(self.code_var_pattern))
         return self._var_name
+
+    @property
+    def code_parents(self):
+        """Empty parents."""
+        return []
+
+    @property
+    def direct_parent(self):
+        """Null direct parent"""
+        return None
 
 
 class Pwa_window(SWAPYObject):
