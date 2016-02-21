@@ -61,16 +61,6 @@ class SWAPYWrapper(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, pwa_obj, parent=None):
-        '''
-        Constructor
-        '''
-        #original pywinauto object
-        self.pwa_obj = pwa_obj
-        self.parent = parent
-        default_sort_key = lambda name: name[0].lower()
-        self.subitems_sort_key = default_sort_key
-
     def GetProperties(self):
         '''
         Return dict of original + additional properties
@@ -91,7 +81,7 @@ class SWAPYWrapper(object):
         subitems += self._children
         subitems += self._additional_children
 
-        subitems.sort(key=self.subitems_sort_key)
+        subitems.sort(key=self._subitems_sort_key)
         #encode names
         subitems_encoded = []
         for (name, obj) in subitems:
@@ -108,21 +98,7 @@ class SWAPYWrapper(object):
         return 0
         
     def Get_actions(self):
-
-        """
-        return allowed actions for this object. [(id,action_name),...]
-        """
-
-        allowed_actions = []
-        try:
-            obj_actions = dir(self.pwa_obj.WrapperObject())
-        except:
-            obj_actions = dir(self.pwa_obj)
-        for _id, action in ACTIONS.items():
-            if action in obj_actions:
-                allowed_actions.append((_id, action))
-        allowed_actions.sort(key=lambda name: name[1].lower())
-        return allowed_actions
+        return self._actions
 
     def Get_extended_actions(self):
 
@@ -130,12 +106,10 @@ class SWAPYWrapper(object):
         Extended actions
         """
 
-        return []
+        return self._extended_actions
 
-    def Highlight_control(self): 
-        if self._check_visibility():
-          thread.start_new_thread(self._highlight_control,(3,))
-        return 0
+    def Highlight_control(self):
+        self._highlight_control()
 
     def _get_pywinobj_type(self, obj):
         '''
@@ -195,6 +169,19 @@ class SWAPYWrapper(object):
         else:
             return NativeObject(pwa_obj, self)
 
+    @property
+    def _default_sort_key(self):
+        key = lambda name: name[0].lower()
+        return key
+
+    @abstractproperty
+    def _actions(self):
+        pass
+
+    @abstractproperty
+    def _extended_actions(self):
+        pass
+
     @abstractproperty
     def _properties(self):
         pass
@@ -209,6 +196,14 @@ class SWAPYWrapper(object):
 
     @abstractproperty
     def _additional_children(self):
+        pass
+
+    @abstractproperty
+    def _subitems_sort_key(self):
+        pass
+
+    @abstractproperty
+    def pwa_obj(self):
         pass
 
     @abstractmethod
@@ -234,8 +229,34 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
     __code_var_pattern = None  # cached value, to access even if the pwa
     # object was closed
 
-    def __init__(self, *args, **kwargs):
-        super(NativeObject, self).__init__(*args, **kwargs)
+    def __init__(self, pwa_obj, parent=None):
+        '''
+        Constructor
+        '''
+        #original pywinauto object
+        self._pwa_obj = pwa_obj
+        self.parent = parent
+
+    @property
+    def _actions(self):
+        """
+        return allowed actions for this object. [(id,action_name),...]
+        """
+
+        allowed_actions = []
+        try:
+            obj_actions = dir(self.pwa_obj.WrapperObject())
+        except:
+            obj_actions = dir(self.pwa_obj)
+        for _id, action in ACTIONS.items():
+            if action in obj_actions:
+                allowed_actions.append((_id, action))
+        allowed_actions.sort(key=lambda name: name[1].lower())
+        return allowed_actions
+
+    @property
+    def _extended_actions(self):
+        return []
 
     @property
     def direct_parent(self):
@@ -431,14 +452,26 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         '''
         return []
 
-    def _highlight_control(self, repeat = 1):
-        while repeat > 0:
-            repeat -= 1
-            self.pwa_obj.DrawOutline('red', thickness=1)
-            time.sleep(0.3)
-            self.pwa_obj.DrawOutline(colour=0xffffff, thickness=1)
-            time.sleep(0.2)
-        return 0
+    @property
+    def _subitems_sort_key(self):
+        return self._default_sort_key
+
+    @property
+    def pwa_obj(self):
+        return self._pwa_obj
+
+    def _highlight_control(self):
+        def __highlight(repeat=1):
+            while repeat > 0:
+                repeat -= 1
+                self.pwa_obj.DrawOutline('red', thickness=1)
+                time.sleep(0.3)
+                self.pwa_obj.DrawOutline(colour=0xffffff, thickness=1)
+                time.sleep(0.2)
+
+        if self._check_visibility():
+            # TODO: can be a lot of threads
+            thread.start_new_thread(__highlight, (3,))
 
     def _check_visibility(self):
         '''
@@ -515,7 +548,7 @@ class VirtualNativeObject(NativeObject):
         # TODO: maybe use super here?
         self.parent = parent
         self.index = index
-        self.pwa_obj = self
+        self._pwa_obj = self
         self._check_visibility = self.parent._check_visibility
         self._check_actionable = self.parent._check_actionable
         self._check_existence = self.parent._check_existence
@@ -554,12 +587,18 @@ class VirtualNativeObject(NativeObject):
     def _properties(self):
         return {}
     
-    def Get_subitems(self):
+    @property
+    def _children(self):
+        """No children"""
         return []
-        
-    def Highlight_control(self): 
+
+    @property
+    def _additional_children(self):
+        """No children"""
+        return []
+
+    def _highlight_control(self):
         pass
-        return 0
 
     
 class PC_system(NativeObject):
@@ -592,7 +631,8 @@ class PC_system(NativeObject):
     # def code_var_pattern(self):
     #     return "app{id}".format(id="{id}")
 
-    def Get_subitems(self):
+    @property
+    def _children(self):
         '''
         returns [(window_text, swapy_obj),...]
         '''
@@ -642,15 +682,15 @@ class PC_system(NativeObject):
                 'PC name': platform.node()}
         return info
         
-    def Get_actions(self):
+    @property
+    def _actions(self):
         '''
         No actions for PC_system
         '''
         return []
 
-    def Highlight_control(self): 
+    def _highlight_control(self):
         pass
-        return 0
         
     def _check_visibility(self):
         return True
@@ -850,7 +890,8 @@ class Pwa_window(NativeObject):
         #---
         return additional_properties
 
-    def Get_extended_actions(self):
+    @property
+    def _extended_actions(self):
 
         """
         Extended actions
@@ -918,6 +959,16 @@ class Pwa_menu(NativeObject):
             return True
 
     @property
+    def _subitems_sort_key(self):
+        def key(obj):
+            if hasattr(obj[1].pwa_obj, 'Index'):
+                #sorts items by indexes
+                return obj[1].pwa_obj.Index()
+            else:
+                return self._default_sort_key(obj)
+        return key
+
+    @property
     def _additional_children(self):
         '''
         Add submenu object as children
@@ -925,8 +976,6 @@ class Pwa_menu(NativeObject):
         #print(dir(self.pwa_obj))
         #print(self.pwa_obj.is_main_menu)
         #print(self.pwa_obj.owner_item)
-        
-        self.subitems_sort_key = lambda obj: obj[1].pwa_obj.Index() #sorts items by indexes
 
         if not self.pwa_obj.accessible:
             return []
@@ -952,9 +1001,8 @@ class Pwa_menu(NativeObject):
         '''
         return []
         
-    def Highlight_control(self): 
+    def _highlight_control(self):
         pass
-        return 0
 
 
 class Pwa_menu_item(Pwa_menu):
@@ -1144,12 +1192,18 @@ class listview_item(NativeObject):
     def _check_existence(self):
         return True
 
-    def Get_subitems(self):
+    @property
+    def _children(self):
+        """No children"""
         return []
 
-    def Highlight_control(self):
+    @property
+    def _additional_children(self):
+        """No children"""
+        return []
+
+    def _highlight_control(self):
         pass
-        return 0
 
 
 class Pwa_tab(NativeObject):
@@ -1297,9 +1351,8 @@ class Pwa_toolbar_button(NativeObject):
                  'text': o.info.text}
         return props
         
-    def Highlight_control(self): 
+    def _highlight_control(self):
         pass
-        return 0
 
         
 class Pwa_tree(NativeObject):
@@ -1322,9 +1375,8 @@ class Pwa_tree(NativeObject):
             additional_children += root_item
         return additional_children
         
-    def Highlight_control(self): 
+    def _highlight_control(self):
         pass
-        return 0
 
 
 class Pwa_tree_item(NativeObject):
@@ -1371,9 +1423,8 @@ class Pwa_tree_item(NativeObject):
     def _children(self):
         return []
         
-    def Highlight_control(self): 
+    def _highlight_control(self):
         pass
-        return 0
 
     @property
     def _additional_children(self):
