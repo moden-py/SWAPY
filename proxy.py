@@ -18,6 +18,9 @@
 #    Suite 330,
 #    Boston, MA 02111-1307 USA
 
+"""proxy module for pywinauto"""
+
+from abc import ABCMeta, abstractproperty, abstractmethod
 import exceptions
 import os
 import platform
@@ -30,10 +33,6 @@ import warnings
 import pywinauto
 from code_manager import CodeGenerator, check_valid_identifier
 from const import *
-
-'''
-proxy module for pywinauto 
-'''
 
 
 pywinauto.timings.Timings.window_find_timeout = 1
@@ -54,11 +53,13 @@ def resource_path(filename):
     return filename
 
 
-class PwaWrapper(object):
+class SWAPYWrapper(object):
 
     """
     Base proxy class for pywinauto objects.
     """
+
+    __metaclass__ = ABCMeta
 
     def __init__(self, pwa_obj, parent=None):
         '''
@@ -76,8 +77,8 @@ class PwaWrapper(object):
         Can be overridden for non pywinauto objects
         '''
         properties = {}
-        properties.update(self._get_properties())
-        properties.update(self._get_additional_properties())
+        properties.update(self._properties)
+        properties.update(self._additional_properties)
         return properties
         
     def Get_subitems(self):
@@ -87,8 +88,8 @@ class PwaWrapper(object):
         '''
         subitems = []
 
-        subitems += self._get_children()
-        subitems += self._get_additional_children()
+        subitems += self._children
+        subitems += self._additional_children
 
         subitems.sort(key=self.subitems_sort_key)
         #encode names
@@ -136,103 +137,6 @@ class PwaWrapper(object):
           thread.start_new_thread(self._highlight_control,(3,))
         return 0
 
-    def _get_properties(self):
-        '''
-        Get original pywinauto's object properties
-        '''
-        #print type(self.pwa_obj)
-        try:
-            properties = self.pwa_obj.GetProperties()
-        except exceptions.RuntimeError:
-            properties = {} #workaround
-        return properties
-        
-    def _get_additional_properties(self):
-
-        """
-        Get additional useful properties, like a handle, process ID, etc.
-        Can be overridden by derived class
-        """
-
-        additional_properties = {}
-
-        #-----Access names
-        access_names = [name for name, obj in self.__get_uniq_names(target_control=self.pwa_obj)]
-        if access_names:
-            additional_properties.update({'Access names' : access_names})
-        #-----
-        
-        #-----pwa_type
-        additional_properties.update({'pwa_type' : str(type(self.pwa_obj))})
-        #---
-        
-        #-----handle
-        try:
-            additional_properties.update({'handle' : str(self.pwa_obj.handle)})
-        except:
-            pass
-        #---
-        return additional_properties
-        
-    def _get_children(self):
-
-        """
-        Return original pywinauto's object children & names
-        [(control_text, swapy_obj),...]
-        """
-
-        if self.pwa_obj.Parent() and isinstance(self.parent, Pwa_window):
-            # Hide children of the non top level window control.
-            # Expect all the children are accessible from the top level window.
-            return []
-
-        u_names = None
-        children = []
-        children_controls = self.pwa_obj.Children()
-        for child_control in children_controls:
-            try:
-                texts = child_control.Texts()
-            except exceptions.WindowsError:
-                # texts = ['Unknown control name2!'] #workaround for
-                # WindowsError: [Error 0] ...
-                texts = None
-            except exceptions.RuntimeError:
-                # texts = ['Unknown control name3!'] #workaround for
-                # RuntimeError: GetButtonInfo failed for button
-                # with command id 256
-                texts = None
-
-            if texts:
-                texts = filter(bool, texts)  # filter out '' and None items
-
-            if texts:  # check again after the filtering
-                title = ', '.join(texts)
-            else:
-                # .Texts() does not have a useful title, trying get it
-                # from the uniqnames
-                if u_names is None:
-                    # init unames list
-                    u_names = self.__get_uniq_names()
-
-                child_uniq_name = [u_name for u_name, obj in u_names
-                                   if obj.WrapperObject() == child_control]
-
-                if child_uniq_name:
-                    title = child_uniq_name[-1]
-                else:
-                    # uniqnames has no useful title
-                    title = 'Unknown control name1!'
-            children.append((title, self._get_swapy_object(child_control)))
-
-        return children
-
-    def _get_additional_children(self):
-        '''
-        Get additional children, like for a menu, submenu, subtab, etc.
-        Should be overridden in derived classes of non standard pywinauto object
-        '''
-        return []
-        
     def _get_pywinobj_type(self, obj):
         '''
         Check self pywinauto object type
@@ -261,7 +165,7 @@ class PwaWrapper(object):
             return 'tree_item'
         else:
             return 'unknown'
-        
+
     def _get_swapy_object(self, pwa_obj):
         pwa_type = self._get_pywinobj_type(pwa_obj)
         #print pwa_type
@@ -289,88 +193,34 @@ class PwaWrapper(object):
         if pwa_type == 'tree_item':
             return Pwa_tree_item(pwa_obj, self)
         else:
-            return SWAPYObject(pwa_obj, self)
+            return NativeObject(pwa_obj, self)
 
-    def _highlight_control(self, repeat = 1):
-        while repeat > 0:
-            repeat -= 1
-            self.pwa_obj.DrawOutline('red', thickness=1)
-            time.sleep(0.3)
-            self.pwa_obj.DrawOutline(colour=0xffffff, thickness=1)
-            time.sleep(0.2)
-        return 0
-        
+    @abstractproperty
+    def _properties(self):
+        pass
+
+    @abstractproperty
+    def _additional_properties(self):
+        pass
+
+    @abstractproperty
+    def _children(self):
+        pass
+
+    @abstractproperty
+    def _additional_children(self):
+        pass
+
+    @abstractmethod
     def _check_visibility(self):
-        '''
-        Check control/window visibility.
-        Return pwa.IsVisible() or False if fails
-        '''
-        is_visible = False
-        try:
-            is_visible = self.pwa_obj.IsVisible()
-        except:
-            pass
-        return is_visible
-        
-    def _check_actionable(self):
-        '''
-        Check control/window Actionable.
-        Return True or False if fails
-        '''
-        try:
-            self.pwa_obj.VerifyActionable()
-        except:
-            is_actionable = False
-        else:
-            is_actionable = True
-        return is_actionable
-        
-    def _check_existence(self):
-        '''
-        Check control/window Exists.
-        Return True or False if fails
-        '''
+        pass
 
-        try:
-            handle_ = self.pwa_obj.handle
-            obj = pywinauto.application.WindowSpecification({'handle': handle_})
-        except:
-            is_exist = False
-        else:
-            is_exist = obj.Exists()
-        return is_exist
-
-    def __get_uniq_names(self, target_control=None):
-
-        """
-        Return uniq_names of the control
-        [(uniq_name, obj), ]
-        If target_control specified, apply additional filtering for obj == target_control
-        """
-
-        # TODO: cache this method
-
-        pwa_app = pywinauto.application.Application()  # TODO: do not call .Application() everywhere.
-
-        try:
-            parent_obj = self.pwa_obj.TopLevelParent()
-        except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
-            #For non visible windows
-            #...
-            #InvalidWindowHandle: Handle 0x262710 is not a valid window handle
-            parent_obj = self.pwa_obj
-        except AttributeError:
-            return []
-
-        visible_controls = [pwa_app.window_(handle=ch) for ch in
-                            pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
-        uniq_names_obj = [(uniq_name, obj) for uniq_name, obj
-                      in pywinauto.findbestmatch.build_unique_dict(visible_controls).items()
-                      if uniq_name != '' and (not target_control or obj.WrapperObject() == target_control)]
-        return sorted(uniq_names_obj, key=lambda name_obj: len(name_obj[0]))  # sort by name
+    @abstractmethod
+    def _highlight_control(self):
+        pass
 
 
-class SWAPYObject(PwaWrapper, CodeGenerator):
+class NativeObject(SWAPYWrapper, CodeGenerator):
 
     """
     Mix the pywinauto wrapper and the code generator
@@ -385,7 +235,7 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
     # object was closed
 
     def __init__(self, *args, **kwargs):
-        super(SWAPYObject, self).__init__(*args, **kwargs)
+        super(NativeObject, self).__init__(*args, **kwargs)
 
     @property
     def direct_parent(self):
@@ -417,7 +267,6 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
         """
         Default _code_self.
         """
-        #print self._get_additional_properties()
         access_name = self.GetProperties()['Access names'][0]
 
         if check_valid_identifier(access_name):
@@ -481,8 +330,187 @@ class SWAPYObject(PwaWrapper, CodeGenerator):
 
         pass
 
+    @property
+    def _properties(self):
+        '''
+        Get original pywinauto's object properties
+        '''
+        #print type(self.pwa_obj)
+        try:
+            properties = self.pwa_obj.GetProperties()
+        except exceptions.RuntimeError:
+            properties = {} #workaround
+        return properties
 
-class VirtualSWAPYObject(SWAPYObject):
+    @property
+    def _additional_properties(self):
+
+        """
+        Get additional useful properties, like a handle, process ID, etc.
+        Can be overridden by derived class
+        """
+
+        additional_properties = {}
+
+        #-----Access names
+        access_names = [name for name, obj in self.__get_uniq_names(target_control=self.pwa_obj)]
+        if access_names:
+            additional_properties.update({'Access names' : access_names})
+        #-----
+
+        #-----pwa_type
+        additional_properties.update({'pwa_type' : str(type(self.pwa_obj))})
+        #---
+
+        #-----handle
+        try:
+            additional_properties.update({'handle' : str(self.pwa_obj.handle)})
+        except:
+            pass
+        #---
+        return additional_properties
+
+    @property
+    def _children(self):
+
+        """
+        Return original pywinauto's object children & names
+        [(control_text, swapy_obj),...]
+        """
+
+        if self.pwa_obj.Parent() and isinstance(self.parent, Pwa_window):
+            # Hide children of the non top level window control.
+            # Expect all the children are accessible from the top level window.
+            return []
+
+        u_names = None
+        children = []
+        children_controls = self.pwa_obj.Children()
+        for child_control in children_controls:
+            try:
+                texts = child_control.Texts()
+            except exceptions.WindowsError:
+                # texts = ['Unknown control name2!'] #workaround for
+                # WindowsError: [Error 0] ...
+                texts = None
+            except exceptions.RuntimeError:
+                # texts = ['Unknown control name3!'] #workaround for
+                # RuntimeError: GetButtonInfo failed for button
+                # with command id 256
+                texts = None
+
+            if texts:
+                texts = filter(bool, texts)  # filter out '' and None items
+
+            if texts:  # check again after the filtering
+                title = ', '.join(texts)
+            else:
+                # .Texts() does not have a useful title, trying get it
+                # from the uniqnames
+                if u_names is None:
+                    # init unames list
+                    u_names = self.__get_uniq_names()
+
+                child_uniq_name = [u_name for u_name, obj in u_names
+                                   if obj.WrapperObject() == child_control]
+
+                if child_uniq_name:
+                    title = child_uniq_name[-1]
+                else:
+                    # uniqnames has no useful title
+                    title = 'Unknown control name1!'
+            children.append((title, self._get_swapy_object(child_control)))
+
+        return children
+
+    @property
+    def _additional_children(self):
+        '''
+        Get additional children, like for a menu, submenu, subtab, etc.
+        Should be overridden in derived classes of non standard pywinauto object
+        '''
+        return []
+
+    def _highlight_control(self, repeat = 1):
+        while repeat > 0:
+            repeat -= 1
+            self.pwa_obj.DrawOutline('red', thickness=1)
+            time.sleep(0.3)
+            self.pwa_obj.DrawOutline(colour=0xffffff, thickness=1)
+            time.sleep(0.2)
+        return 0
+
+    def _check_visibility(self):
+        '''
+        Check control/window visibility.
+        Return pwa.IsVisible() or False if fails
+        '''
+        is_visible = False
+        try:
+            is_visible = self.pwa_obj.IsVisible()
+        except:
+            pass
+        return is_visible
+
+    def _check_actionable(self):
+        '''
+        Check control/window Actionable.
+        Return True or False if fails
+        '''
+        try:
+            self.pwa_obj.VerifyActionable()
+        except:
+            is_actionable = False
+        else:
+            is_actionable = True
+        return is_actionable
+
+    def _check_existence(self):
+        '''
+        Check control/window Exists.
+        Return True or False if fails
+        '''
+
+        try:
+            handle_ = self.pwa_obj.handle
+            obj = pywinauto.application.WindowSpecification({'handle': handle_})
+        except:
+            is_exist = False
+        else:
+            is_exist = obj.Exists()
+        return is_exist
+
+    def __get_uniq_names(self, target_control=None):
+
+        """
+        Return uniq_names of the control
+        [(uniq_name, obj), ]
+        If target_control specified, apply additional filtering for obj == target_control
+        """
+
+        # TODO: cache this method
+
+        pwa_app = pywinauto.application.Application()  # TODO: do not call .Application() everywhere.
+
+        try:
+            parent_obj = self.pwa_obj.TopLevelParent()
+        except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
+            #For non visible windows
+            #...
+            #InvalidWindowHandle: Handle 0x262710 is not a valid window handle
+            parent_obj = self.pwa_obj
+        except AttributeError:
+            return []
+
+        visible_controls = [pwa_app.window_(handle=ch) for ch in
+                            pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
+        uniq_names_obj = [(uniq_name, obj) for uniq_name, obj
+                      in pywinauto.findbestmatch.build_unique_dict(visible_controls).items()
+                      if uniq_name != '' and (not target_control or obj.WrapperObject() == target_control)]
+        return sorted(uniq_names_obj, key=lambda name_obj: len(name_obj[0]))  # sort by name
+
+
+class VirtualNativeObject(NativeObject):
     def __init__(self, parent, index):
         # TODO: maybe use super here?
         self.parent = parent
@@ -522,7 +550,8 @@ class VirtualSWAPYObject(SWAPYObject):
     def Select(self):
         self.parent.pwa_obj.Select(self.index)
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         return {}
     
     def Get_subitems(self):
@@ -533,7 +562,7 @@ class VirtualSWAPYObject(SWAPYObject):
         return 0
 
     
-class PC_system(SWAPYObject):
+class PC_system(NativeObject):
     handle = 0
     short_name = 'pc'  # hope it never be used in the code generator
 
@@ -606,7 +635,8 @@ class PC_system(SWAPYObject):
         #------------------------
         return windows
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         info = {'Platform': platform.platform(),
                 'Processor': platform.processor(),
                 'PC name': platform.node()}
@@ -692,7 +722,7 @@ class Process(CodeGenerator):
         return None
 
 
-class Pwa_window(SWAPYObject):
+class Pwa_window(NativeObject):
     code_self_close = "{parent_var}.Kill_()"
     short_name = 'window'
 
@@ -748,7 +778,7 @@ class Pwa_window(SWAPYObject):
     @property
     def _code_self(self):
         code = ""
-        if not self._get_additional_properties()['Access names']:
+        if not self._additional_properties['Access names']:
             raise NotImplementedError
         else:
             is_main_window = bool(self.parent.main_window is None or
@@ -781,7 +811,8 @@ class Pwa_window(SWAPYObject):
 
         return code
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add menu object as children
         '''
@@ -792,7 +823,8 @@ class Pwa_window(SWAPYObject):
             additional_children += menu_child
         return additional_children
 
-    def _get_additional_properties(self):
+    @property
+    def _additional_properties(self):
         '''
         Get additional useful properties, like a handle, process ID, etc.
         Can be overridden by derived class
@@ -859,7 +891,7 @@ class Pwa_window(SWAPYObject):
             self.parent.decrement_code_id(self.parent.code_var_pattern)
 
 
-class Pwa_menu(SWAPYObject):
+class Pwa_menu(NativeObject):
 
     short_name = 'menu'
 
@@ -885,7 +917,8 @@ class Pwa_menu(SWAPYObject):
         else:
             return True
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add submenu object as children
         '''
@@ -910,8 +943,9 @@ class Pwa_menu(SWAPYObject):
             menu_item_child = [(item_text, self._get_swapy_object(menu_item))]
             additional_children += menu_item_child
         return additional_children
-        
-    def _get_children(self):
+
+    @property
+    def _children(self):
         '''
         Return original pywinauto's object children
         
@@ -945,7 +979,8 @@ class Pwa_menu_item(Pwa_menu):
             is_actionable = True
         return is_actionable
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add submenu object as children
         '''
@@ -977,11 +1012,12 @@ class Pwa_menu_item(Pwa_menu):
         return '->'.join(path[::-1])
 
 
-class Pwa_combobox(SWAPYObject):
+class Pwa_combobox(NativeObject):
 
     short_name = 'combobox'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add ComboBox items as children
         '''
@@ -997,9 +1033,10 @@ class Pwa_combobox(SWAPYObject):
         return additional_children
 
 
-class virtual_combobox_item(VirtualSWAPYObject):
+class virtual_combobox_item(VirtualNativeObject):
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         index = None
         text = self.index
         for i, name in enumerate(self.parent.pwa_obj.ItemTexts()):
@@ -1009,11 +1046,12 @@ class virtual_combobox_item(VirtualSWAPYObject):
         return {'Index': index, 'Text': text}
 
 
-class Pwa_listbox(SWAPYObject):
+class Pwa_listbox(NativeObject):
 
     short_name = 'listbox'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
 
         """
         Add ListBox items as children
@@ -1031,9 +1069,10 @@ class Pwa_listbox(SWAPYObject):
         return additional_children
 
 
-class virtual_listbox_item(VirtualSWAPYObject):
+class virtual_listbox_item(VirtualNativeObject):
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         index = None
         text = self.index
         for i, name in enumerate(self.parent.pwa_obj.ItemTexts()):
@@ -1043,11 +1082,12 @@ class virtual_listbox_item(VirtualSWAPYObject):
         return {'Index': index, 'Text': text}
 
 
-class Pwa_listview(SWAPYObject):
+class Pwa_listview(NativeObject):
 
     short_name = 'listview'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add SysListView32 items as children
         '''
@@ -1062,7 +1102,7 @@ class Pwa_listview(SWAPYObject):
         return additional_children
 
 
-class listview_item(SWAPYObject):
+class listview_item(NativeObject):
 
     code_self_patt_text = "{var} = {parent_var}.GetItem({text})"
     code_self_patt_index = "{var} = {parent_var}.GetItem({index}, {col_index})"
@@ -1088,7 +1128,8 @@ class listview_item(SWAPYObject):
                                                    var="{var}")
         return code
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         item_properties = {'index': self.pwa_obj.item_index,
                            'column_index': self.pwa_obj.subitem_index}
         item_properties.update(self.pwa_obj.ItemData())
@@ -1111,11 +1152,12 @@ class listview_item(SWAPYObject):
         return 0
 
 
-class Pwa_tab(SWAPYObject):
+class Pwa_tab(NativeObject):
 
     short_name = 'tab'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
 
         """
         Add TabControl items as children
@@ -1130,7 +1172,7 @@ class Pwa_tab(SWAPYObject):
         return additional_children
 
 
-class virtual_tab_item(VirtualSWAPYObject):
+class virtual_tab_item(VirtualNativeObject):
 
     @property
     def _code_action(self):
@@ -1143,17 +1185,19 @@ class virtual_tab_item(VirtualSWAPYObject):
                                                parent_var="{parent_var}")
         return code
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         item_properties = {'Index' : self.index,
                            'Texts': self.parent.pwa_obj.GetTabText(self.index)}
         return item_properties
 
 
-class Pwa_toolbar(SWAPYObject):
+class Pwa_toolbar(NativeObject):
 
     short_name = 'toolbar'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add button objects as children
         '''
@@ -1173,8 +1217,9 @@ class Pwa_toolbar(SWAPYObject):
                 button_item = [(button_text, button_object)]
                 additional_children += button_item
         return additional_children
-        
-    def _get_children(self):
+
+    @property
+    def _children(self):
         '''
         Return original pywinauto's object children
         
@@ -1182,7 +1227,7 @@ class Pwa_toolbar(SWAPYObject):
         return []
 
 
-class Pwa_toolbar_button(SWAPYObject):
+class Pwa_toolbar_button(NativeObject):
 
     code_self_pattern = "{var} = {parent_var}.Button({index})"
     short_name = 'toolbar_button'
@@ -1232,11 +1277,13 @@ class Pwa_toolbar_button(SWAPYObject):
         else:
             is_exist = obj.Exists()
         return is_exist
-        
-    def _get_children(self):
+
+    @property
+    def _children(self):
         return []
-        
-    def _get_properties(self):
+
+    @property
+    def _properties(self):
         o = self.pwa_obj
         props = {'IsCheckable': o.IsCheckable(),
                  'IsChecked': o.IsChecked(),
@@ -1255,11 +1302,12 @@ class Pwa_toolbar_button(SWAPYObject):
         return 0
 
         
-class Pwa_tree(SWAPYObject):
+class Pwa_tree(NativeObject):
 
     short_name = 'tree'
 
-    def _get_additional_children(self):
+    @property
+    def _additional_children(self):
         '''
         Add roots object as children
         '''
@@ -1279,7 +1327,7 @@ class Pwa_tree(SWAPYObject):
         return 0
 
 
-class Pwa_tree_item(SWAPYObject):
+class Pwa_tree_item(NativeObject):
 
     main_parent_type = Pwa_tree
     code_self_pattern = "{var} = {main_parent_var}.GetItem({path})"
@@ -1296,7 +1344,8 @@ class Pwa_tree_item(SWAPYObject):
             path=path, var="{var}", main_parent_var="{main_parent_var}")
         return code
 
-    def _get_properties(self):
+    @property
+    def _properties(self):
         o = self.pwa_obj
         props = {'Rectangle' : o.Rectangle(),
                  'State' : o.State(),
@@ -1317,15 +1366,17 @@ class Pwa_tree_item(SWAPYObject):
             return self.parent.pwa_obj.IsExpanded()
         else:
             return True
-        
-    def _get_children(self):
+
+    @property
+    def _children(self):
         return []
         
     def Highlight_control(self): 
         pass
         return 0
-    
-    def _get_additional_children(self):
+
+    @property
+    def _additional_children(self):
         '''
         Add sub tree items object as children
         '''
