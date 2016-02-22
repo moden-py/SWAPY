@@ -42,6 +42,9 @@ install:
    # install wxPython
    - "%CMD_IN_ENV% powershell ./ci/install.ps1"
 
+   # install wxPython
+   - "%CMD_IN_ENV% powershell ./ci/install.ps1"
+
    # Print python modules
    - "%CMD_IN_ENV% pip freeze"
 
