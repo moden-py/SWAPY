@@ -1,5 +1,5 @@
 # GUI object/properties browser. 
-# Copyright (C) 2011 Matiychuk D.
+# Copyright (C) 2016 Matiychuk D.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -25,12 +25,12 @@ import exceptions
 import os
 import platform
 import string
-import sys
 import thread
 import time
 import warnings
 
 import pywinauto
+
 from code_manager import CodeGenerator, check_valid_identifier
 from const import *
 
@@ -38,71 +38,55 @@ from const import *
 pywinauto.timings.Timings.window_find_timeout = 1
 
 
-def resource_path(filename):
-    if hasattr(sys, '_MEIPASS'):
-        # PyInstaller >= 1.6
-        ###os.chdir(sys._MEIPASS)
-        filename = os.path.join(sys._MEIPASS, filename)
-    elif '_MEIPASS2' in os.environ:
-        # PyInstaller < 1.6 (tested on 1.5 only)
-        ###os.chdir(os.environ['_MEIPASS2'])
-        filename = os.path.join(os.environ['_MEIPASS2'], filename)
-    else:
-        ###os.chdir(sys.path.dirname(sys.argv[0]))
-        filename = os.path.join(os.path.dirname(sys.argv[0]), filename)
-    return filename
-
-
 class MetaWrapper(ABCMeta):
+    """Meta class with storing list of target subclasses."""
 
-    wrappers = {}
+    wrappers = {}  # List of the registered wrappers
 
     def __init__(cls, name, bases, attrs):
-        # print(name, bases, attrs)
-        if object not in bases and\
-                        'target_class' in attrs and \
-                        attrs['target_class'] is not None:
-            # print(dir(attrs['target_class']))
+        """Register the wrapper."""
+        if object not in bases \
+                and 'target_class' in attrs \
+                and attrs['target_class'] is not None:
             cls.wrappers[attrs['target_class']] = cls
-        # print(cls.wrappers)
+
         super(MetaWrapper, cls).__init__(name, bases, attrs)
 
 
 class SWAPYWrapper(object):
-
-    """
-    Base proxy class for pywinauto objects.
-    """
+    """Base proxy class(interface) for pywinauto objects."""
 
     __metaclass__ = MetaWrapper
 
     def __new__(cls, *args, **kwargs):
+        """Wrap with registered wrappers."""
         if cls is SWAPYWrapper:
             # Direct call, wrap target class
             try:
                 wrap_class = cls.__metaclass__.wrappers[args[0].__class__]
             except KeyError:
+                # unknown class, use the default wrapper
                 wrap_class = cls.__metaclass__.wrappers['default']
             instance = wrap_class(*args, **kwargs)
         else:
+            # Call from a sub class
             instance = super(SWAPYWrapper, cls).__new__(cls, *args, **kwargs)
         return instance
 
+    @property
+    def _default_sort_key(self):
+        """Default sort key."""
+        return lambda name: name[0].lower()
+
     def GetProperties(self):
-        '''
-        Return dict of original + additional properties
-        Can be overridden for non pywinauto objects
-        '''
+        """Return dict of original + additional properties."""
         properties = {}
         properties.update(self._properties)
         properties.update(self._additional_properties)
         return properties
         
     def Get_subitems(self):
-        '''
-        Return list of children - [(control_text, swapy_obj),...]
-        Can be overridden for non pywinauto objects
-        '''
+        """Return list of children - [(control_text, swapy_obj),...]."""
         subitems = []
 
         subitems += self._children
@@ -117,82 +101,81 @@ class SWAPYWrapper(object):
         return subitems_encoded
         
     def Exec_action(self, action):
-        '''
-        Execute action on the control
-        '''
-        #print('self.pwa_obj.'+action+'()')
+        """Execute action on the control."""
         exec('self.pwa_obj.'+action+'()')
         return 0
         
     def Get_actions(self):
+        """Return list of the regular actions."""
         return self._actions
 
     def Get_extended_actions(self):
-
-        """
-        Extended actions
-        """
-
+        """Return list of the extended actions."""
         return self._extended_actions
 
     def Highlight_control(self):
+        """Highlight the control."""
         self._highlight_control()
-
-    @property
-    def _default_sort_key(self):
-        key = lambda name: name[0].lower()
-        return key
-
-    @abstractproperty
-    def _actions(self):
-        pass
-
-    @abstractproperty
-    def _extended_actions(self):
-        pass
-
-    @abstractproperty
-    def _properties(self):
-        pass
-
-    @abstractproperty
-    def _additional_properties(self):
-        pass
-
-    @abstractproperty
-    def _children(self):
-        pass
-
-    @abstractproperty
-    def _additional_children(self):
-        pass
-
-    @abstractproperty
-    def _subitems_sort_key(self):
-        pass
 
     @abstractproperty
     def pwa_obj(self):
+        """Pywinauto objects."""
         pass
 
     @abstractproperty
     def target_class(self):
+        """Target wrapper's pywinauto class."""
+        pass
+
+    @abstractproperty
+    def _actions(self):
+        """List of the regular actions."""
+        pass
+
+    @abstractproperty
+    def _additional_children(self):
+        """List of the additional children."""
+        pass
+
+    @abstractproperty
+    def _additional_properties(self):
+        """Dict with additional actions."""
         pass
 
     @abstractmethod
     def _check_visibility(self):
+        """Check the pywinauto object visibility."""
+        pass
+
+    @abstractproperty
+    def _children(self):
+        """List of the main children."""
+        pass
+
+    @abstractproperty
+    def _extended_actions(self):
+        """List of the extended actions."""
         pass
 
     @abstractmethod
     def _highlight_control(self):
+        """Highlight the pywinauto object."""
+        pass
+
+    @abstractproperty
+    def _properties(self):
+        """Dict with regular actions."""
+        pass
+
+    @abstractproperty
+    def _subitems_sort_key(self):
+        """Sub items sort key."""
         pass
 
 
 class NativeObject(SWAPYWrapper, CodeGenerator):
+    """Mix SWAPYWrapper and the code generator."""
 
-    """
-    Mix the pywinauto wrapper and the code generator
-    """
     target_class = 'default'
     code_self_pattern_attr = "{var} = {parent_var}.{access_name}"
     code_self_pattern_item = "{var} = {parent_var}[{access_name}]"
@@ -203,20 +186,18 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
     # object was closed
 
     def __init__(self, pwa_obj, parent=None):
-        '''
-        Constructor
-        '''
-        #original pywinauto object
-        self._pwa_obj = pwa_obj
+        """NativeObject constructor."""
+        self._pwa_obj = pwa_obj  # original pywinauto object
         self.parent = parent
         super(NativeObject, self).__init__(pwa_obj, parent=None)
 
     @property
     def _actions(self):
         """
-        return allowed actions for this object. [(id,action_name),...]
-        """
+        Rreturn allowed actions for this object.
 
+        [(id,action_name),...]
+        """
         allowed_actions = []
         try:
             obj_actions = dir(self.pwa_obj.WrapperObject())
@@ -230,20 +211,26 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
     @property
     def _extended_actions(self):
+        """
+        Extended actions.
+
+        May be redefined in sub classes.
+        """
         return []
 
     @property
     def direct_parent(self):
+        """Return direct parent."""
         return self.parent
 
     @property
     def code_parents(self):
-
         """
         Collect a list of all parents needed to access the control.
-        Some parents may be excluded regarding to the `self.main_parent_type` parameter.
-        """
 
+        Some parents may be excluded regarding to the
+        `self.main_parent_type` parameter.
+        """
         grab_all = True if not self.main_parent_type else False
         code_parents = []
         parent = self.parent
@@ -258,10 +245,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
     @property
     def _code_self(self):
-
-        """
-        Default _code_self.
-        """
+        """Default _code_self. """
         access_name = self.GetProperties()['Access names'][0]
 
         if check_valid_identifier(access_name):
@@ -282,29 +266,22 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
     @property
     def _code_action(self):
-
-        """
-        Default _code_action.
-        """
+        """Default _code_action."""
         code = self.code_action_pattern
         return code
 
     @property
     def _code_close(self):
-
-        """
-        Default _code_close.
-        """
+        """Default _code_close."""
         return ""
 
     @property
     def code_var_pattern(self):
-
         """
-        Compose variable prefix, based on the control Class or
-        short name of the SWAPY wrapper class.
-        """
+        Compose variable prefix.
 
+        Based on the control Class or short name of the SWAPY wrapper class.
+        """
         if self.__code_var_pattern is None:
             var_prefix = self.short_name
             if 'Class' in self.GetProperties():
@@ -318,58 +295,53 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         return self.__code_var_pattern
 
     def SetCodestyle(self, extended_action_id):
-
-        """
-        Switch a control code style regarding extended_action_id
-        """
-
+        """Switch a control code style regarding extended_action_id"""
         pass
 
     @property
     def _properties(self):
-        '''
-        Get original pywinauto's object properties
-        '''
-        #print type(self.pwa_obj)
+        """Get original pywinauto's object properties."""
         try:
             properties = self.pwa_obj.GetProperties()
         except exceptions.RuntimeError:
-            properties = {} #workaround
+            properties = {}  # workaround
         return properties
 
     @property
     def _additional_properties(self):
-
         """
         Get additional useful properties, like a handle, process ID, etc.
+
         Can be overridden by derived class
         """
-
         additional_properties = {}
 
-        #-----Access names
-        access_names = [name for name, obj in self.__get_uniq_names(target_control=self.pwa_obj)]
+        # -----Access names
+        access_names = [
+            name for name, obj
+            in self.__get_uniq_names(target_control=self.pwa_obj)
+            ]
         if access_names:
-            additional_properties.update({'Access names' : access_names})
-        #-----
+            additional_properties.update({'Access names': access_names})
+        # -----
 
-        #-----pwa_type
-        additional_properties.update({'pwa_type' : str(type(self.pwa_obj))})
-        #---
+        # -----pwa_type
+        additional_properties.update({'pwa_type': str(type(self.pwa_obj))})
+        # ---
 
-        #-----handle
+        # -----handle
         try:
-            additional_properties.update({'handle' : str(self.pwa_obj.handle)})
+            additional_properties.update({'handle': str(self.pwa_obj.handle)})
         except:
             pass
-        #---
+        # ---
         return additional_properties
 
     @property
     def _children(self):
-
         """
-        Return original pywinauto's object children & names
+        Return original pywinauto's object children & names.
+
         [(control_text, swapy_obj),...]
         """
 
@@ -420,21 +392,30 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
     @property
     def _additional_children(self):
-        '''
+        """
         Get additional children, like for a menu, submenu, subtab, etc.
-        Should be overridden in derived classes of non standard pywinauto object
-        '''
+
+        Should be overridden in derived classes of non standard
+        pywinauto object.
+        """
         return []
 
     @property
     def _subitems_sort_key(self):
+        """
+        Sub items sorting key.
+
+        Use default key.
+        """
         return self._default_sort_key
 
     @property
     def pwa_obj(self):
+        """Return pywinauto object."""
         return self._pwa_obj
 
     def _highlight_control(self):
+        """Highlight the control."""
         def __highlight(repeat=1):
             while repeat > 0:
                 repeat -= 1
@@ -448,10 +429,11 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
             thread.start_new_thread(__highlight, (3,))
 
     def _check_visibility(self):
-        '''
+        """
         Check control/window visibility.
+
         Return pwa.IsVisible() or False if fails
-        '''
+        """
         is_visible = False
         try:
             is_visible = self.pwa_obj.IsVisible()
@@ -460,10 +442,11 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         return is_visible
 
     def _check_actionable(self):
-        '''
+        """
         Check control/window Actionable.
+
         Return True or False if fails
-        '''
+        """
         try:
             self.pwa_obj.VerifyActionable()
         except:
@@ -473,11 +456,11 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         return is_actionable
 
     def _check_existence(self):
-        '''
+        """
         Check control/window Exists.
-        Return True or False if fails
-        '''
 
+        Return True or False if fails
+        """
         try:
             handle_ = self.pwa_obj.handle
             obj = pywinauto.application.WindowSpecification({'handle': handle_})
@@ -488,16 +471,17 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         return is_exist
 
     def __get_uniq_names(self, target_control=None):
-
         """
-        Return uniq_names of the control
+        Return uniq_names of the control.
+
         [(uniq_name, obj), ]
-        If target_control specified, apply additional filtering for obj == target_control
+        If target_control specified, apply additional
+        filtering for obj == target_control
         """
-
         # TODO: cache this method
 
-        pwa_app = pywinauto.application.Application()  # TODO: do not call .Application() everywhere.
+        # TODO: do not call .Application() everywhere.
+        pwa_app = pywinauto.application.Application()
 
         try:
             parent_obj = self.pwa_obj.TopLevelParent()
@@ -510,11 +494,20 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
             return []
 
         visible_controls = [pwa_app.window_(handle=ch) for ch in
-                            pywinauto.findwindows.find_windows(parent=parent_obj.handle, top_level_only=False)]
-        uniq_names_obj = [(uniq_name, obj) for uniq_name, obj
-                      in pywinauto.findbestmatch.build_unique_dict(visible_controls).items()
-                      if uniq_name != '' and (not target_control or obj.WrapperObject() == target_control)]
-        return sorted(uniq_names_obj, key=lambda name_obj: len(name_obj[0]))  # sort by name
+                            pywinauto.findwindows.find_windows(
+                                    parent=parent_obj.handle,
+                                    top_level_only=False)]
+
+        uniq_names_obj = [
+            (uniq_name, obj) for uniq_name, obj
+            in pywinauto.findbestmatch.build_unique_dict(
+                    visible_controls).items()
+            if uniq_name != '' and (not target_control
+                or obj.WrapperObject() == target_control)
+            ]
+
+        # sort by name
+        return sorted(uniq_names_obj, key=lambda name_obj: len(name_obj[0]))
 
 
 class VirtualNativeObject(NativeObject):

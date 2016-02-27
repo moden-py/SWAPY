@@ -1,5 +1,5 @@
 # GUI object/properties browser. 
-# Copyright (C) 2011 Matiychuk D.
+# Copyright (C) 2016 Matiychuk D.
 #
 # This library is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public License
@@ -20,13 +20,15 @@
 
 #Boa:Frame:MainFrame
 
-import const
+
 import platform
 import thread
 import traceback
+
 import wx
 
 import code_manager
+import const
 import proxy
 import tools
 
@@ -56,7 +58,7 @@ class Frame1(wx.Frame):
               title='SWAPY - Simple Windows Automation on Python v. %s. pywinauto v. %s. %s' % (const.VERSION,
                                                                                                 proxy.pywinauto.__version__,
                                                                                                 platform.architecture()[0]))
-        self.SetIcon(wx.Icon(proxy.resource_path("swapy_dog_head.ico"),
+        self.SetIcon(wx.Icon(tools.resource_path("swapy_dog_head.ico"),
               wx.BITMAP_TYPE_ICO))
               
         self.Bind(wx.EVT_MENU, self.menu_action) # - make action
