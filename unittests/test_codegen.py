@@ -18,44 +18,20 @@
 #    Suite 330,
 #    Boston, MA 02111-1307 USA
 
-from contextlib import contextmanager
-import os
 import string
 import time
 import unittest
 
-from pywinauto.application import Application
-from pywinauto.sysinfo import is_x64_Python
+from pywinauto import actionlogger
+from PIL import ImageGrab
 
 import code_manager
 import const
 import proxy
+from sample_apps import test_app
 
-from pywinauto import actionlogger
+
 actionlogger.enable()
-from PIL import ImageGrab
-
-SAMPLE_APPS_PATH = u"..\\apps\\MFC_samples"
-
-
-@contextmanager
-def test_app(filename):
-    mfc_samples_folder = os.path.join(os.path.dirname(__file__),
-                                      SAMPLE_APPS_PATH)
-    if is_x64_Python():
-        sample_exe = os.path.join(mfc_samples_folder, "x64", filename)
-    else:
-        sample_exe = os.path.join(mfc_samples_folder, filename)
-
-    app = Application().start(sample_exe, timeout=3)
-    app_path = os.path.normpath(sample_exe).encode('unicode-escape')
-    try:
-        yield app, app_path
-    except:
-        # Re-raise AssertionError and others
-        raise
-    finally:
-        app.kill_()
 
 
 class BaseTestCase(unittest.TestCase):
@@ -86,7 +62,7 @@ class BaseTestCase(unittest.TestCase):
 
         proxy_object = self.pwa_root
         for target_sub in path:
-            subitems = proxy_object.Get_subitems()
+            subitems = proxy_object.get_subitems()
             if not subitems:
                 raise RuntimeError("'%s' cannot be found" % target_sub)
             for name, pwa_object in subitems:
@@ -102,11 +78,10 @@ class BaseTestCase(unittest.TestCase):
 class ObjectBrowserTestCases(BaseTestCase):
 
     def tearDown(self):
-        ImageGrab.grab().save("scr%s.jpg" % time.time(), "JPEG")
+        # ImageGrab.grab().save("scr%s.jpg" % time.time(), "JPEG")
         super(ObjectBrowserTestCases, self).tearDown()
 
     def testNestedControl(self):
-        self.assertTrue(False)
         direct_path = (u'Common Controls Sample',
                        u'Treeview1, Birds, Eagle, Hummingbird, Pigeon',
                        u'Birds',
@@ -132,17 +107,15 @@ class ObjectBrowserTestCases(BaseTestCase):
                 u'RowList Version 1.0',
                 )
 
-        self.assertTrue(False)
-
         with test_app("RowList.exe") as (app, app_path):
             w = app['RowList Sample Application']
-            print time.time()
+            # print time.time()
             w.Wait('ready')
-            print time.time()
+            # print time.time()
             time.sleep(3)
-            print 1, app_path
-            print 2, w._menu_handle()
-            print 3, w.handle
+            # print 1, app_path
+            # print 2, w._menu_handle()
+            # print 3, w.handle
             w.SetFocus()
 
             app['RowList Sample Application'].MenuItem(
@@ -158,7 +131,6 @@ class ObjectBrowserTestCases(BaseTestCase):
 class EmptyTextsTestCases(BaseTestCase):
 
     def testToolbarCode(self):
-        self.assertTrue(False)
         expected_code = \
             "from pywinauto.application import Application\n\n" \
             "app = Application().Start(cmd_line=u'{app_path}')\n" \

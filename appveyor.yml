@@ -39,6 +39,12 @@ install:
    - "%CMD_IN_ENV% pip install -e git+https://github.com/pywinauto/pywinauto.git@master#egg=pywinauto-trunk"
    # - "%CMD_IN_ENV% pip install -e git+https://github.com/pywinauto/pywinauto.git@5b2b8a6082cc14154b32a94178c11a4c3a574701#egg=pywinauto"
 
+   # install wxPython
+   - "%CMD_IN_ENV% powershell ./ci/install.ps1"
+
+   # install wxPython
+   - "%CMD_IN_ENV% powershell ./ci/install.ps1"
+
    # Print python modules
    - "%CMD_IN_ENV% pip freeze"
 
@@ -52,8 +58,6 @@ before_build:
   - "%CMD_IN_ENV% python -m unittest discover"
 
 build_script:
-  # install wxPython
-  - "%CMD_IN_ENV% powershell ./ci/install.ps1"
   # Print python modules again
   - "%CMD_IN_ENV% pip freeze"
   # Build UI
