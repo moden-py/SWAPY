@@ -58,11 +58,12 @@ class MetaWrapper(ABCMeta):
     wrappers = {}
 
     def __init__(cls, name, bases, attrs):
+        # print(name, bases, attrs)
         if object not in bases and\
-                        'wrap_class' in attrs and \
-                        attrs['wrap_class'] is not None:
-            # print(dir(attrs['wrap_class']))
-            cls.wrappers[attrs['wrap_class']] = cls
+                        'target_class' in attrs and \
+                        attrs['target_class'] is not None:
+            # print(dir(attrs['target_class']))
+            cls.wrappers[attrs['target_class']] = cls
         # print(cls.wrappers)
         super(MetaWrapper, cls).__init__(name, bases, attrs)
 
@@ -74,6 +75,18 @@ class SWAPYWrapper(object):
     """
 
     __metaclass__ = MetaWrapper
+
+    def __new__(cls, *args, **kwargs):
+        if cls is SWAPYWrapper:
+            # Direct call, wrap target class
+            try:
+                wrap_class = cls.__metaclass__.wrappers[args[0].__class__]
+            except KeyError:
+                wrap_class = cls.__metaclass__.wrappers['default']
+            instance = wrap_class(*args, **kwargs)
+        else:
+            instance = super(SWAPYWrapper, cls).__new__(cls, *args, **kwargs)
+        return instance
 
     def GetProperties(self):
         '''
@@ -221,7 +234,7 @@ class SWAPYWrapper(object):
         pass
 
     @abstractproperty
-    def wrap_class(self):
+    def target_class(self):
         pass
 
     @abstractmethod
@@ -238,7 +251,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
     """
     Mix the pywinauto wrapper and the code generator
     """
-    wrap_class = pywinauto.controls.common_controls.HwndWrapper
+    target_class = 'default'
     code_self_pattern_attr = "{var} = {parent_var}.{access_name}"
     code_self_pattern_item = "{var} = {parent_var}[{access_name}]"
     code_action_pattern = "{var}.{action}()"
@@ -254,6 +267,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         #original pywinauto object
         self._pwa_obj = pwa_obj
         self.parent = parent
+        super(NativeObject, self).__init__(pwa_obj, parent=None)
 
     @property
     def _actions(self):
@@ -458,7 +472,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
                 else:
                     # uniqnames has no useful title
                     title = 'Unknown control name1!'
-            children.append((title, self._get_swapy_object(child_control)))
+            children.append((title, SWAPYWrapper(child_control, self)))
 
         return children
 
@@ -562,7 +576,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
 
 class VirtualNativeObject(NativeObject):
-    wrap_class = None
+    target_class = None
     def __init__(self, parent, index):
         # TODO: maybe use super here?
         self.parent = parent
@@ -621,7 +635,7 @@ class VirtualNativeObject(NativeObject):
 
     
 class PC_system(NativeObject):
-    wrap_class = None
+    target_class = None
     handle = 0
     short_name = 'pc'  # hope it never be used in the code generator
 
@@ -687,7 +701,7 @@ class PC_system(NativeObject):
                     title = 'Window#%s' % w_handle
                 else:
                     title = ', '.join(texts)
-            windows.append((title, self._get_swapy_object(wind)))
+            windows.append((title, SWAPYWrapper(wind, self)))
         windows.sort(key=lambda name: name[0].lower())
         #-----------------------
         
@@ -783,7 +797,7 @@ class Process(CodeGenerator):
 
 
 class Pwa_window(NativeObject):
-    wrap_class = pywinauto.application.WindowSpecification
+    target_class = pywinauto.application.WindowSpecification
     code_self_close = "{parent_var}.Kill_()"
     short_name = 'window'
 
@@ -800,6 +814,9 @@ class Pwa_window(NativeObject):
             return new_window
 
     def __init__(self, *args, **kwargs):
+
+        process = Process(args[1], args[0].ProcessID())
+        args = (args[0], process)
         if not self.inited:
             # Set default style
             self.code_self_style = self.__code_self_start
@@ -880,7 +897,7 @@ class Pwa_window(NativeObject):
         additional_children = []
         menu = self.pwa_obj.Menu()
         if menu:
-            menu_child = [('!Menu', self._get_swapy_object(menu))]
+            menu_child = [('!Menu', SWAPYWrapper(menu, self))]
             additional_children += menu_child
         return additional_children
 
@@ -954,7 +971,7 @@ class Pwa_window(NativeObject):
 
 
 class Pwa_menu(NativeObject):
-    wrap_class = pywinauto.controls.menuwrapper.Menu
+    target_class = pywinauto.controls.menuwrapper.Menu
     short_name = 'menu'
 
     def _check_visibility(self):
@@ -1010,7 +1027,7 @@ class Pwa_menu(NativeObject):
                     item_text = '-----Separator-----'
                 else:
                     item_text = 'Index: %d' % menu_item.Index()
-            menu_item_child = [(item_text, self._get_swapy_object(menu_item))]
+            menu_item_child = [(item_text, SWAPYWrapper(menu_item, self))]
             additional_children += menu_item_child
         return additional_children
 
@@ -1027,7 +1044,7 @@ class Pwa_menu(NativeObject):
 
 
 class Pwa_menu_item(Pwa_menu):
-    wrap_class = pywinauto.controls.menuwrapper.MenuItem
+    target_class = pywinauto.controls.menuwrapper.MenuItem
     short_name = 'menu_item'
 
     main_parent_type = Pwa_window
@@ -1060,7 +1077,7 @@ class Pwa_menu_item(Pwa_menu):
         additional_children = []
         submenu = self.pwa_obj.SubMenu()
         if submenu:
-            submenu_child = [(self.pwa_obj.Text()+' submenu', self._get_swapy_object(submenu))]
+            submenu_child = [(self.pwa_obj.Text()+' submenu', SWAPYWrapper(submenu, self))]
             additional_children += submenu_child
         return additional_children
 
@@ -1082,7 +1099,7 @@ class Pwa_menu_item(Pwa_menu):
 
 
 class Pwa_combobox(NativeObject):
-    wrap_class = pywinauto.controls.win32_controls.ComboBoxWrapper
+    target_class = pywinauto.controls.win32_controls.ComboBoxWrapper
     short_name = 'combobox'
 
     @property
@@ -1116,7 +1133,7 @@ class virtual_combobox_item(VirtualNativeObject):
 
 
 class Pwa_listbox(NativeObject):
-    wrap_class = pywinauto.controls.win32_controls.ListBoxWrapper
+    target_class = pywinauto.controls.win32_controls.ListBoxWrapper
     short_name = 'listbox'
 
     @property
@@ -1152,7 +1169,7 @@ class virtual_listbox_item(VirtualNativeObject):
 
 
 class Pwa_listview(NativeObject):
-    wrap_class = pywinauto.controls.common_controls.ListViewWrapper
+    target_class = pywinauto.controls.common_controls.ListViewWrapper
     short_name = 'listview'
 
     @property
@@ -1172,7 +1189,7 @@ class Pwa_listview(NativeObject):
 
 
 class listview_item(NativeObject):
-    wrap_class = pywinauto.controls.common_controls._listview_item
+    target_class = pywinauto.controls.common_controls._listview_item
     code_self_patt_text = "{var} = {parent_var}.GetItem({text})"
     code_self_patt_index = "{var} = {parent_var}.GetItem({index}, {col_index})"
     short_name = 'listview_item'
@@ -1228,7 +1245,7 @@ class listview_item(NativeObject):
 
 
 class Pwa_tab(NativeObject):
-    wrap_class = pywinauto.controls.common_controls.TabControlWrapper
+    target_class = pywinauto.controls.common_controls.TabControlWrapper
     short_name = 'tab'
 
     @property
@@ -1268,7 +1285,7 @@ class virtual_tab_item(VirtualNativeObject):
 
 
 class Pwa_toolbar(NativeObject):
-    wrap_class = pywinauto.controls.common_controls.ToolbarWrapper
+    target_class = pywinauto.controls.common_controls.ToolbarWrapper
     short_name = 'toolbar'
 
     @property
@@ -1284,7 +1301,7 @@ class Pwa_toolbar(NativeObject):
                 button_text = button.info.text
                 if not button_text:
                     button_text = "button #%s" % button_index
-                button_object = self._get_swapy_object(button)
+                button_object = SWAPYWrapper(button, self)
             except exceptions.RuntimeError:
                 #button_text = ['Unknown button name1!'] #workaround for RuntimeError: GetButtonInfo failed for button with index 0
                 pass #ignore the button
@@ -1303,7 +1320,7 @@ class Pwa_toolbar(NativeObject):
 
 
 class Pwa_toolbar_button(NativeObject):
-    wrap_class = pywinauto.controls.common_controls._toolbar_button
+    target_class = pywinauto.controls.common_controls._toolbar_button
     code_self_pattern = "{var} = {parent_var}.Button({index})"
     short_name = 'toolbar_button'
 
@@ -1377,7 +1394,7 @@ class Pwa_toolbar_button(NativeObject):
 
         
 class Pwa_tree(NativeObject):
-    wrap_class = pywinauto.controls.common_controls.TreeViewWrapper
+    target_class = pywinauto.controls.common_controls.TreeViewWrapper
     short_name = 'tree'
 
     @property
@@ -1390,7 +1407,7 @@ class Pwa_tree(NativeObject):
         roots = self.pwa_obj.Roots()
         for root in roots:
             root_text = root.Text()
-            obj = self._get_swapy_object(root)
+            obj = SWAPYWrapper(root, self)
             obj.path = [root_text]
             root_item = [(root_text, obj)]
             additional_children += root_item
@@ -1401,7 +1418,7 @@ class Pwa_tree(NativeObject):
 
 
 class Pwa_tree_item(NativeObject):
-    wrap_class = pywinauto.controls.common_controls._treeview_element
+    target_class = pywinauto.controls.common_controls._treeview_element
     main_parent_type = Pwa_tree
     code_self_pattern = "{var} = {main_parent_var}.GetItem({path})"
     short_name = 'tree_item'
@@ -1457,7 +1474,7 @@ class Pwa_tree_item(NativeObject):
         sub_items = self.pwa_obj.Children()
         for item in sub_items:
             item_text = item.Text()
-            obj = self._get_swapy_object(item)
+            obj = SWAPYWrapper(item, self)
             obj.path = self.path + [item_text]
             sub_item = [(item_text, obj)]
             additional_children += sub_item
