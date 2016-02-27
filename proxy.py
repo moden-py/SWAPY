@@ -1,4 +1,4 @@
-# GUI object/properties browser. 
+# GUI object/properties browser.
 # Copyright (C) 2016 Matiychuk D.
 #
 # This library is free software; you can redistribute it and/or
@@ -18,7 +18,7 @@
 #    Suite 330,
 #    Boston, MA 02111-1307 USA
 
-"""proxy module for pywinauto"""
+"""proxy module for pywinauto."""
 
 from abc import ABCMeta, abstractproperty, abstractmethod
 import exceptions
@@ -78,14 +78,14 @@ class SWAPYWrapper(object):
         """Default sort key."""
         return lambda name: name[0].lower()
 
-    def GetProperties(self):
+    def get_properties(self):
         """Return dict of original + additional properties."""
         properties = {}
         properties.update(self._properties)
         properties.update(self._additional_properties)
         return properties
-        
-    def Get_subitems(self):
+
+    def get_subitems(self):
         """Return list of children - [(control_text, swapy_obj),...]."""
         subitems = []
 
@@ -93,27 +93,27 @@ class SWAPYWrapper(object):
         subitems += self._additional_children
 
         subitems.sort(key=self._subitems_sort_key)
-        #encode names
+        # encode names
         subitems_encoded = []
         for (name, obj) in subitems:
-            #name = name.encode('cp1251', 'replace')
+            # name = name.encode('cp1251', 'replace')
             subitems_encoded.append((name, obj))
         return subitems_encoded
-        
-    def Exec_action(self, action):
+
+    def execute_action(self, action):
         """Execute action on the control."""
         exec('self.pwa_obj.'+action+'()')
         return 0
-        
-    def Get_actions(self):
+
+    def get_actions(self):
         """Return list of the regular actions."""
         return self._actions
 
-    def Get_extended_actions(self):
+    def get_extended_actions(self):
         """Return list of the extended actions."""
         return self._extended_actions
 
-    def Highlight_control(self):
+    def highlight_control(self):
         """Highlight the control."""
         self._highlight_control()
 
@@ -245,8 +245,8 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
     @property
     def _code_self(self):
-        """Default _code_self. """
-        access_name = self.GetProperties()['Access names'][0]
+        """Default _code_self."""
+        access_name = self.get_properties()['Access names'][0]
 
         if check_valid_identifier(access_name):
             # A valid identifier
@@ -254,7 +254,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
                 access_name=access_name, parent_var="{parent_var}",
                 var="{var}")
         else:
-            #Not valid, encode and use as app's item.
+            # Not valid, encode and use as app's item.
             if isinstance(access_name, unicode):
                 access_name = "u'%s'" % access_name.encode('unicode-escape')
             elif isinstance(access_name, str):
@@ -284,9 +284,9 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         """
         if self.__code_var_pattern is None:
             var_prefix = self.short_name
-            if 'Class' in self.GetProperties():
+            if 'Class' in self.get_properties():
                 crtl_class = filter(lambda c: c in string.ascii_letters,
-                                    self.GetProperties()['Class']).lower()
+                                    self.get_properties()['Class']).lower()
                 if crtl_class:
                     var_prefix = crtl_class
 
@@ -295,7 +295,7 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         return self.__code_var_pattern
 
     def SetCodestyle(self, extended_action_id):
-        """Switch a control code style regarding extended_action_id"""
+        """Switch a control code style regarding extended_action_id."""
         pass
 
     @property
@@ -344,7 +344,6 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
         [(control_text, swapy_obj),...]
         """
-
         if self.pwa_obj.Parent() and isinstance(self.parent, Pwa_window):
             # Hide children of the non top level window control.
             # Expect all the children are accessible from the top level window.
@@ -463,7 +462,8 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         """
         try:
             handle_ = self.pwa_obj.handle
-            obj = pywinauto.application.WindowSpecification({'handle': handle_})
+            obj = pywinauto.application.WindowSpecification(
+                    {'handle': handle_})
         except:
             is_exist = False
         else:
@@ -486,9 +486,10 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
         try:
             parent_obj = self.pwa_obj.TopLevelParent()
         except pywinauto.controls.HwndWrapper.InvalidWindowHandle:
-            #For non visible windows
-            #...
-            #InvalidWindowHandle: Handle 0x262710 is not a valid window handle
+            # For non visible windows
+            # ...
+            # InvalidWindowHandle: Handle 0x262710 is not a valid
+            # window handle
             parent_obj = self.pwa_obj
         except AttributeError:
             return []
@@ -502,8 +503,8 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
             (uniq_name, obj) for uniq_name, obj
             in pywinauto.findbestmatch.build_unique_dict(
                     visible_controls).items()
-            if uniq_name != '' and (not target_control
-                or obj.WrapperObject() == target_control)
+            if uniq_name != '' and
+            (not target_control or obj.WrapperObject() == target_control)
             ]
 
         # sort by name
