@@ -138,64 +138,6 @@ class SWAPYWrapper(object):
     def Highlight_control(self):
         self._highlight_control()
 
-    def _get_pywinobj_type(self, obj):
-        '''
-        Check self pywinauto object type
-        '''
-        if type(obj) == pywinauto.application.WindowSpecification:
-            return 'window'
-        elif type(obj) == pywinauto.controls.menuwrapper.Menu:
-            return 'menu'
-        elif type(obj) == pywinauto.controls.menuwrapper.MenuItem:
-            return 'menu_item'
-        elif type(obj) == pywinauto.controls.win32_controls.ComboBoxWrapper:
-            return 'combobox'
-        elif type(obj) == pywinauto.controls.win32_controls.ListBoxWrapper:
-            return 'listbox'
-        elif type(obj) == pywinauto.controls.common_controls.ListViewWrapper:
-            return 'listview'
-        elif type(obj) == pywinauto.controls.common_controls.TabControlWrapper:
-            return 'tab'
-        elif type(obj) == pywinauto.controls.common_controls.ToolbarWrapper:
-            return 'toolbar'
-        elif type(obj) == pywinauto.controls.common_controls._toolbar_button:
-            return 'toolbar_button'
-        elif type(obj) == pywinauto.controls.common_controls.TreeViewWrapper:
-            return 'tree_view'
-        elif type(obj) == pywinauto.controls.common_controls._treeview_element:
-            return 'tree_item'
-        else:
-            return 'unknown'
-
-    def _get_swapy_object(self, pwa_obj):
-        pwa_type = self._get_pywinobj_type(pwa_obj)
-        #print pwa_type
-        if pwa_type == 'window':
-            process = Process(self, pwa_obj.ProcessID())
-            return Pwa_window(pwa_obj, process)
-        if pwa_type == 'menu':
-            return Pwa_menu(pwa_obj, self)
-        if pwa_type == 'menu_item':
-            return Pwa_menu_item(pwa_obj, self)
-        if pwa_type == 'combobox':
-            return Pwa_combobox(pwa_obj, self)
-        if pwa_type == 'listbox':
-            return Pwa_listbox(pwa_obj, self)
-        if pwa_type == 'listview':
-            return Pwa_listview(pwa_obj, self)
-        if pwa_type == 'tab':
-            return Pwa_tab(pwa_obj, self)
-        if pwa_type == 'toolbar':
-            return Pwa_toolbar(pwa_obj, self)
-        if pwa_type == 'toolbar_button':
-            return Pwa_toolbar_button(pwa_obj, self)
-        if pwa_type == 'tree_view':
-            return Pwa_tree(pwa_obj, self)
-        if pwa_type == 'tree_item':
-            return Pwa_tree_item(pwa_obj, self)
-        else:
-            return NativeObject(pwa_obj, self)
-
     @property
     def _default_sort_key(self):
         key = lambda name: name[0].lower()
