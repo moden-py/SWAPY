@@ -64,7 +64,12 @@ class SWAPYWrapper(object):
         if cls is SWAPYWrapper:
             # Direct call, wrap target class
             try:
-                wrap_class = cls.__metaclass__.wrappers[args[0].__class__]
+                target_class = args[0].WrapperObject().__class__
+            except AttributeError:
+                target_class = args[0].__class__
+
+            try:
+                wrap_class = cls.__metaclass__.wrappers[target_class]
             except KeyError:
                 # unknown class, use the default wrapper
                 wrap_class = cls.__metaclass__.wrappers['default']
@@ -517,23 +522,35 @@ class NativeObject(SWAPYWrapper, CodeGenerator):
 
 # Temporarily inherit from NativeObject
 class SWAPYUIAObject(NativeObject):
-     def _check_existence(self):
+
+    target_class = pywinauto.controls.UIAWrapper.UIAWrapper
+
+    def _check_existence(self):
         '''
         Check control/window Exists.
         Return True or False if fails
         '''
         return True
 
-     def _highlight_control(self, repeat = 1):
+    def _highlight_control(self, repeat = 1):
         pass
 
-     def _get_properties(self):
+    @property
+    def _properties(self):
         '''
         Get original pywinauto's object properties
         '''
         #print type(self.pwa_obj)
         properties = {} #workaround
         return properties
+
+    @property
+    def _children(self):
+        descendants = []
+        for descen in self.pwa_obj.descendants():
+            texts = ', '.join(filter(bool, descen.Texts()))
+            descendants.append((texts, SWAPYWrapper(descen, self)))
+        return descendants
 
 
 class VirtualNativeObject(NativeObject):
